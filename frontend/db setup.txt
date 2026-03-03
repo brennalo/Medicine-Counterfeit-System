@@ -1,0 +1,33 @@
+HOW TO SETUP DATABASE (This will be a local environment):
+1. Download MySQL 8.0 Workbench
+2. Click on the + sign once downloaded and opened
+3. Connection Name: pharmachain_local (can be anything distinct you'd like, not consequential to db connection)
+4. Connection Method: Standard (TCP/IP)
+5. Hostname: 127.0.0.1 Port:3306 (keep as is, hostname/IP (DB_HOST) & port (DB_PORT) tallies with .env)
+6. Username: root (keep as is for now, have to manual add pharmachain_username user later)
+7. Password: 12345 (click on Store in Vault, is 12345 because in the .env i put the DB_PS as 12345)
+8. Default Schema: "" (leave blank for now. have to manual create new schema once the MySQL Connection is made)
+
+
+Once the MYSQL Conenction is successfully made:
+
+SCHEMA SETUP:
+1. Right click on the SCHEMAS tab in the Navigator docker on left side of screen
+2. Click on 'Create Schema...'
+3. Name: pharmachain_bcd (have to be exactly this)
+4. Click on Apply twice & Finish.
+
+USERNAME SETUP:
+1. Under Navigator docker on left side of screen, search for 'Administration' next to the 'Schemas' undertab.
+2. Click on Users & Privileges.
+3. Click on Add Account on the Users & Privileges window.
+4. Login Name: pharmachain_username (exactly this)
+5. Limit to Hosts Matching: localhost
+6. Password: ""/ [anything you want]
+7. Apply.
+
+
+Once the above is done:
+1. in Terminal: cd frontend
+2. node src/lib/db-init.js
+3. Once database schema initialised, check in pharmachain_bcd schema if tables have been made
