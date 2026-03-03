@@ -3,7 +3,14 @@ import { NextResponse } from "next/server";
 import { getMedicineRegistry } from "@/lib/blockchain";
 import db from "@/lib/db";
 
-const STATUS_LABELS = ["CREATED", "SHIPPED", "SORTED", "DELIVERED", "VERIFIED", "FLAGGED"];
+const STATUS_LABELS = [
+  "CREATED",
+  "SHIPPED",
+  "SORTED",
+  "DELIVERED",
+  "VERIFIED",
+  "FLAGGED",
+];
 const FLAG_LABELS = [
   "NONE",
   "NEAR_EXPIRY",
@@ -15,12 +22,21 @@ const FLAG_LABELS = [
 
 export async function GET(request, { params }) {
   try {
-    const { batchId } = params;
+    // Support both Promise and plain object for params
+    const resolvedParams = typeof params.then === 'function' ? await params : params;
+    const { batchId } = resolvedParams;
     const registry = getMedicineRegistry();
 
     const [
-      medicineId, medicineName, hospitalId, manufacturerId,
-      expiryDate, createdAt, currentStatus, currentFlagReason, exists
+      medicineId,
+      medicineName,
+      hospitalId,
+      manufacturerId,
+      expiryDate,
+      createdAt,
+      currentStatus,
+      currentFlagReason,
+      exists,
     ] = await registry.getBatch(batchId);
 
     if (!exists) {
@@ -28,8 +44,14 @@ export async function GET(request, { params }) {
     }
 
     // Fetch history
-    const [statuses, flagReasons, locationIds, imageHashes, timestamps, updatedBys] =
-      await registry.getBatchHistory(batchId);
+    const [
+      statuses,
+      flagReasons,
+      locationIds,
+      imageHashes,
+      timestamps,
+      updatedBys,
+    ] = await registry.getBatchHistory(batchId);
 
     const history = statuses.map((s, i) => ({
       status: STATUS_LABELS[Number(s)],
@@ -43,7 +65,7 @@ export async function GET(request, { params }) {
     // Enrich with off-chain image paths
     const [images] = await db.execute(
       "SELECT status_step, image_path, uploaded_at FROM batch_images WHERE batch_id = ? ORDER BY id",
-      [batchId]
+      [batchId],
     );
 
     return NextResponse.json({
