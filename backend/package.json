@@ -1,4 +1,13 @@
 {
+  "name": "pharmachain-hardhat",
+  "version": "0.1.0",
+  "scripts": {
+    "node": "hardhat node",
+    "compile": "hardhat compile",
+    "deploy:local": "hardhat run scripts/deploy.js --network localhost",
+    "deploy:sepolia": "hardhat run scripts/deploy.js --network sepolia",
+    "test": "hardhat test"
+  },
   "name": "medicine-counterfeit-backend",
   "version": "1.0.0",
   "description": "Smart contracts for Medicine Counterfeit Prevention System",
@@ -12,6 +21,10 @@
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
     "@types/node": "^20.0.0",
     "hardhat": "^2.22.0",
+    "dotenv": "^16.4.0",
     "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3"
   }
 }

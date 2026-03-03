@@ -1,8 +1,7 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  /* config options here */
-  reactCompiler: true,
+  serverExternalPackages: ['ethers', 'mysql2', 'bcryptjs'],
 };
 
 export default nextConfig;
