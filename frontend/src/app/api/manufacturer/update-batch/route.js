@@ -1,94 +1,86 @@
 // frontend/app/api/manufacturer/update-batch/route.js
 import { NextResponse } from "next/server";
-import { getMedicineRegistry, getLocationRegistry, hashImageRef } from "@/lib/blockchain";
+import { getMedicineRegistry, hashImageRef } from "@/lib/blockchain";
 import { withAuth } from "@/lib/auth";
 import db from "@/lib/db";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 
 const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads");
+const ALLOWED_RADIUS_METRES = 500;
 
-// Haversine formula – returns distance in metres
+const FLAG_REASON_LABELS = [
+  "None", "Near Expiry", "Outside Registered Location",
+  "Duplicate Location Update", "Invalid Status Order", "Hospital Flagged",
+];
+
 function haversineDistance(lat1, lon1, lat2, lon2) {
   const R = 6371000;
-  const toRad = (deg) => (deg * Math.PI) / 180;
+  const toRad = (d) => (d * Math.PI) / 180;
   const dLat = toRad(lat2 - lat1);
   const dLon = toRad(lon2 - lon1);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-const ALLOWED_RADIUS_METRES = 500; // within 500m of registered location centre
-
-/**
- * POST multipart/form-data:
- *   batchId, newStatus (1=SHIPPED|2=SORTED|3=DELIVERED),
- *   locationId, currentLat, currentLng,
- *   imageProof (file)
- */
 async function handler(request) {
   try {
     const formData = await request.formData();
     const batchId = formData.get("batchId");
     const newStatus = parseInt(formData.get("newStatus"));
-    const locationId = formData.get("locationId");
     const currentLat = parseFloat(formData.get("currentLat"));
     const currentLng = parseFloat(formData.get("currentLng"));
+    const geoAvailable = formData.get("geoAvailable") === "true";
     const imageFile = formData.get("imageProof");
 
-    if (!batchId || isNaN(newStatus) || !locationId || isNaN(currentLat) || isNaN(currentLng)) {
+    if (!batchId || isNaN(newStatus)) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
     const manufacturerId = request.user.userId;
     const medicineRegistry = getMedicineRegistry();
-    const locationRegistry = getLocationRegistry();
 
-    // ── Validate batch exists ─────────────────────────────────────────────────
     const batchExists = await medicineRegistry.batchExistsPublic(batchId);
     if (!batchExists) {
       return NextResponse.json({ error: "Batch not found" }, { status: 404 });
     }
 
-    // ── Validate location exists and belongs to this manufacturer ─────────────
-    const [, , , locManufacturerId, locExists] = await locationRegistry.getLocation(locationId);
-    if (!locExists) {
-      return NextResponse.json({ error: "Location not registered" }, { status: 404 });
-    }
-    if (locManufacturerId !== manufacturerId) {
-      return NextResponse.json({ error: "Location not owned by you" }, { status: 403 });
-    }
-
-    // ── Off-chain geolocation check ───────────────────────────────────────────
-    const [locRow] = await db.execute(
-      "SELECT latitude, longitude FROM locations WHERE id = ?",
-      [locationId]
+    // Auto-match nearest registered location for this manufacturer
+    const [locationRows] = await db.execute(
+      "SELECT id, name, latitude, longitude FROM locations WHERE manufacturer_id = ?",
+      [manufacturerId]
     );
+
+    let matchedLocationId = null;
     let locationValid = false;
-    if (locRow.length > 0) {
-      const dist = haversineDistance(
-        currentLat, currentLng,
-        parseFloat(locRow[0].latitude),
-        parseFloat(locRow[0].longitude)
-      );
-      locationValid = dist <= ALLOWED_RADIUS_METRES;
+
+    if (geoAvailable && locationRows.length > 0) {
+      let minDist = Infinity;
+      for (const loc of locationRows) {
+        const dist = haversineDistance(currentLat, currentLng, parseFloat(loc.latitude), parseFloat(loc.longitude));
+        if (dist < minDist) {
+          minDist = dist;
+          matchedLocationId = loc.id;
+        }
+      }
+      locationValid = minDist <= ALLOWED_RADIUS_METRES;
+    } else if (!geoAvailable && locationRows.length > 0) {
+      matchedLocationId = locationRows[0].id;
+      locationValid = false;
     }
 
-    // ── Save image to disk (off-chain), store DB reference ────────────────────
+    if (!matchedLocationId) { matchedLocationId = "none"; locationValid = false; }
+
+    // Save image off-chain
     let imageDbId = null;
-    let imageProofHash = "0x" + "0".repeat(64); // bytes32 zero
+    let imageProofHash = "0x" + "0".repeat(64);
 
     if (imageFile && imageFile.size > 0) {
       const bytes = await imageFile.arrayBuffer();
       const buffer = Buffer.from(bytes);
       await mkdir(UPLOAD_DIR, { recursive: true });
       const filename = `${Date.now()}_${imageFile.name.replace(/[^a-z0-9.]/gi, "_")}`;
-      const filePath = path.join(UPLOAD_DIR, filename);
-      await writeFile(filePath, buffer);
-
-      // Insert to MySQL, get auto-increment ID
+      await writeFile(path.join(UPLOAD_DIR, filename), buffer);
       const [result] = await db.execute(
         "INSERT INTO batch_images (batch_id, status_step, image_path) VALUES (?, ?, ?)",
         [batchId, newStatus, `/uploads/${filename}`]
@@ -97,43 +89,23 @@ async function handler(request) {
       imageProofHash = hashImageRef(imageDbId);
     }
 
-    // ── Submit to blockchain (with all checks delegated to contract) ──────────
-    const tx = await medicineRegistry.updateBatchStatus(
-      batchId,
-      newStatus,
-      locationId,
-      imageProofHash,
-      locationValid,
-      manufacturerId
-    );
+    const tx = await medicineRegistry.updateBatchStatus(batchId, newStatus, matchedLocationId, imageProofHash, locationValid, manufacturerId);
     const receipt = await tx.wait();
 
-    // Parse events to check if flagged
-    const flagEvent = receipt.logs
-      ?.map((log) => {
-        try { return medicineRegistry.interface.parseLog(log); } catch { return null; }
-      })
-      .find((e) => e?.name === "BatchFlagged");
+    const flagEvent = receipt.logs?.map((log) => { try { return medicineRegistry.interface.parseLog(log); } catch { return null; } }).find((e) => e?.name === "BatchFlagged");
+    const flagReasonIndex = flagEvent ? Number(flagEvent.args?.reason) : 0;
 
     return NextResponse.json({
-      success: true,
-      batchId,
+      success: true, batchId,
       flagged: !!flagEvent,
-      flagReason: flagEvent?.args?.reason?.toString() ?? null,
-      locationValid,
-      imageDbId,
-      txHash: tx.hash,
+      flagReason: flagReasonIndex,
+      flagReasonLabel: FLAG_REASON_LABELS[flagReasonIndex] ?? "Unknown",
+      locationValid, matchedLocationId, imageDbId, txHash: tx.hash,
     });
   } catch (err) {
     console.error("[Update Batch]", err);
-    const msg = err?.revert?.args?.[0] || err.message || "Internal error";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return NextResponse.json({ error: err?.revert?.args?.[0] || err.message || "Internal error" }, { status: 500 });
   }
 }
 
 export const POST = withAuth(handler, "MANUFACTURER");
-
-// Required for file upload in Next.js App Router
-export const config = {
-  api: { bodyParser: false },
-};
