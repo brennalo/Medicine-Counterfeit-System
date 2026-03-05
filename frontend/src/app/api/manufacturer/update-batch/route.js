@@ -1,10 +1,15 @@
 // frontend/app/api/manufacturer/update-batch/route.js
 import { NextResponse } from "next/server";
-import { getMedicineRegistry, getLocationRegistry, hashImageRef } from "@/lib/blockchain";
+import {
+  getMedicineRegistry,
+  getLocationRegistry,
+  hashImageRef,
+} from "@/lib/blockchain";
 import { withAuth } from "@/lib/auth";
 import db from "@/lib/db";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
+import sharp from "sharp";
 
 const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads");
 
@@ -38,8 +43,17 @@ async function handler(request) {
     const currentLng = parseFloat(formData.get("currentLng"));
     const imageFile = formData.get("imageProof");
 
-    if (!batchId || isNaN(newStatus) || !locationId || isNaN(currentLat) || isNaN(currentLng)) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    if (
+      !batchId ||
+      isNaN(newStatus) ||
+      !locationId ||
+      isNaN(currentLat) ||
+      isNaN(currentLng)
+    ) {
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 },
+      );
     }
 
     const manufacturerId = request.user.userId;
@@ -53,25 +67,33 @@ async function handler(request) {
     }
 
     // ── Validate location exists and belongs to this manufacturer ─────────────
-    const [, , , locManufacturerId, locExists] = await locationRegistry.getLocation(locationId);
+    const [, , , locManufacturerId, locExists] =
+      await locationRegistry.getLocation(locationId);
     if (!locExists) {
-      return NextResponse.json({ error: "Location not registered" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Location not registered" },
+        { status: 404 },
+      );
     }
     if (locManufacturerId !== manufacturerId) {
-      return NextResponse.json({ error: "Location not owned by you" }, { status: 403 });
+      return NextResponse.json(
+        { error: "Location not owned by you" },
+        { status: 403 },
+      );
     }
 
     // ── Off-chain geolocation check ───────────────────────────────────────────
     const [locRow] = await db.execute(
       "SELECT latitude, longitude FROM locations WHERE id = ?",
-      [locationId]
+      [locationId],
     );
     let locationValid = false;
     if (locRow.length > 0) {
       const dist = haversineDistance(
-        currentLat, currentLng,
+        currentLat,
+        currentLng,
         parseFloat(locRow[0].latitude),
-        parseFloat(locRow[0].longitude)
+        parseFloat(locRow[0].longitude),
       );
       locationValid = dist <= ALLOWED_RADIUS_METRES;
     }
@@ -83,15 +105,16 @@ async function handler(request) {
     if (imageFile && imageFile.size > 0) {
       const bytes = await imageFile.arrayBuffer();
       const buffer = Buffer.from(bytes);
-      await mkdir(UPLOAD_DIR, { recursive: true });
-      const filename = `${Date.now()}_${imageFile.name.replace(/[^a-z0-9.]/gi, "_")}`;
-      const filePath = path.join(UPLOAD_DIR, filename);
-      await writeFile(filePath, buffer);
 
-      // Insert to MySQL, get auto-increment ID
+      // Compress image (e.g., JPEG, quality 70)
+      const compressedBuffer = await sharp(buffer)
+        .jpeg({ quality: 70 })
+        .toBuffer();
+
+      // Store compressed image as BLOB in MySQL
       const [result] = await db.execute(
-        "INSERT INTO batch_images (batch_id, status_step, image_path) VALUES (?, ?, ?)",
-        [batchId, newStatus, `/uploads/${filename}`]
+        "INSERT INTO batch_images (batch_id, status_step, image_blob) VALUES (?, ?, ?)",
+        [batchId, newStatus, compressedBuffer],
       );
       imageDbId = result.insertId;
       imageProofHash = hashImageRef(imageDbId);
@@ -104,14 +127,18 @@ async function handler(request) {
       locationId,
       imageProofHash,
       locationValid,
-      manufacturerId
+      manufacturerId,
     );
     const receipt = await tx.wait();
 
     // Parse events to check if flagged
     const flagEvent = receipt.logs
       ?.map((log) => {
-        try { return medicineRegistry.interface.parseLog(log); } catch { return null; }
+        try {
+          return medicineRegistry.interface.parseLog(log);
+        } catch {
+          return null;
+        }
       })
       .find((e) => e?.name === "BatchFlagged");
 

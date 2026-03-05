@@ -1,0 +1,13 @@
+STEPS ON HOW TO CHANGE DB IMAGE_PATH TO IMAGE_BLOB + Change Datatype (THIS IS TO CHANGE CURRENTLY ALREADY SET UP DB):
+
+1. Go to Query Window that executes queries
+Paste the below into Query Builder:
+
+use pharmachain_bcd; 
+select * from batch_images; 
+#To view table's data. Highlight the specific line above to view table each time you want/ after making changes.
+
+ALTER TABLE batch_images RENAME COLUMN image_path TO image_blob;
+ALTER TABLE batch_images MODIFY image_blob LONGBLOB;
+
+#Run line 2: view tables to see if the Altering took place. 

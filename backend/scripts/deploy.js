@@ -6,7 +6,10 @@ const path = require("path");
 async function main() {
   const [deployer] = await ethers.getSigners();
   console.log("Deploying contracts with account:", deployer.address);
-  console.log("Account balance:", (await deployer.provider.getBalance(deployer.address)).toString());
+  console.log(
+    "Account balance:",
+    (await deployer.provider.getBalance(deployer.address)).toString(),
+  );
 
   // Deploy UserRegistry
   const UserRegistry = await ethers.getContractFactory("UserRegistry");
@@ -41,24 +44,28 @@ async function main() {
     },
   };
 
-  const outputPath = path.join(__dirname, "../frontend/lib/deployments.json");
+  // Use absolute path to avoid creating frontend inside backend
+  const frontendLibDir = path.resolve(__dirname, "../../frontend/src/lib");
+  const outputPath = path.join(frontendLibDir, "deployments.json");
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
   fs.writeFileSync(outputPath, JSON.stringify(deploymentData, null, 2));
-  console.log("\n📄 Deployment addresses saved to frontend/lib/deployments.json");
+  console.log(
+    "\n📄 Deployment addresses saved to frontend/src/lib/deployments.json",
+  );
 
-  // Also copy ABIs to frontend
+  // Also copy ABIs to frontend/src/lib/abis
   const contracts = ["UserRegistry", "LocationRegistry", "MedicineRegistry"];
-  const abiOutputDir = path.join(__dirname, "../frontend/lib/abis");
+  const abiOutputDir = path.join(frontendLibDir, "abis");
   fs.mkdirSync(abiOutputDir, { recursive: true });
 
   for (const contractName of contracts) {
     const artifact = require(`../artifacts/contracts/${contractName}.sol/${contractName}.json`);
     fs.writeFileSync(
       path.join(abiOutputDir, `${contractName}.json`),
-      JSON.stringify(artifact.abi, null, 2)
+      JSON.stringify(artifact.abi, null, 2),
     );
   }
-  console.log("📄 ABIs copied to frontend/lib/abis/");
+  console.log("📄 ABIs copied to frontend/src/lib/abis/");
 
   // Seed a default hospital admin account
   const bcrypt = require("bcryptjs");
