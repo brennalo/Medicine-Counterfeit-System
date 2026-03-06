@@ -31,7 +31,7 @@ async function init() {
       id            BIGINT AUTO_INCREMENT PRIMARY KEY,
       batch_id      VARCHAR(128) NOT NULL,
       status_step   TINYINT NOT NULL,
-      image_path    VARCHAR(512) NOT NULL,
+      image_blob    LONGBLOB NOT NULL,
       uploaded_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
       INDEX idx_batch (batch_id)
     );

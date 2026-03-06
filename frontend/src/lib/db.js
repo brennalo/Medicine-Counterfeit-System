@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS batch_images (
   id            BIGINT AUTO_INCREMENT PRIMARY KEY,
   batch_id      VARCHAR(128) NOT NULL,
   status_step   TINYINT NOT NULL,              -- 0=CREATED,1=SHIPPED etc.
-  image_path    VARCHAR(512) NOT NULL,          -- local path or S3 key
+  image_blob    LONGBLOB NOT NULL,          -- local path or S3 key
   uploaded_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
   INDEX (batch_id)
 );

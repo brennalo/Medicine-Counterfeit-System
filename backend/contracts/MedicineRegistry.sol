@@ -50,13 +50,13 @@ contract MedicineRegistry {
         string medicineName;
         string hospitalId;
         string manufacturerId;
-        uint256 expiryDate;       // unix timestamp
+        uint256 expiryDate;
         uint256 createdAt;
         BatchStatus currentStatus;
         FlagReason currentFlagReason;
         bool exists;
-        // history of all status transitions
         uint256 updateCount;
+        bytes32 batchDataHash;
     }
 
     // ─── Storage ──────────────────────────────────────────────────────────────
@@ -164,6 +164,7 @@ contract MedicineRegistry {
      * @param _hospitalId Destination hospital
      * @param _manufacturerId Creating manufacturer
      * @param _expiryDate Unix timestamp of expiry
+     * @param _batchDataHash Hash of the batch data stored off-chain
      */
     function createBatch(
         string memory _batchId,
@@ -171,7 +172,8 @@ contract MedicineRegistry {
         string memory _medicineName,
         string memory _hospitalId,
         string memory _manufacturerId,
-        uint256 _expiryDate
+        uint256 _expiryDate,
+        bytes32 _batchDataHash
     ) external {
         require(!batches[_batchId].exists, "Batch ID already exists");
         require(_expiryDate > block.timestamp, "Expiry must be in the future");
@@ -187,7 +189,8 @@ contract MedicineRegistry {
             currentStatus: BatchStatus.CREATED,
             currentFlagReason: FlagReason.NONE,
             exists: true,
-            updateCount: 0
+            updateCount: 0,
+            batchDataHash: _batchDataHash
         });
 
         // Record creation as first history entry
@@ -469,5 +472,14 @@ contract MedicineRegistry {
 
     function batchExistsPublic(string memory _batchId) external view returns (bool) {
         return batches[_batchId].exists;
+    }
+
+    function getBatchDataHash(string memory _batchId)
+        external
+        view
+        batchExists(_batchId)
+        returns (bytes32)
+    {
+        return batches[_batchId].batchDataHash;
     }
 }

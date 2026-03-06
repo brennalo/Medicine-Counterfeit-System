@@ -85,7 +85,10 @@ export default function HospitalDashboard() {
             <span className="font-semibold">Hospital Portal</span>
           </div>
           <button
-            onClick={() => { document.cookie = "auth_token=; max-age=0"; window.location.href = "/"; }}
+            onClick={() => {
+              document.cookie = "auth_token=; max-age=0";
+              window.location.href = "/";
+            }}
             className="text-sm text-slate-400 hover:text-white transition-colors"
           >
             Sign out
@@ -118,7 +121,9 @@ export default function HospitalDashboard() {
         {activeTab === "verify" && (
           <div className="space-y-6">
             <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
-              <h2 className="text-lg font-semibold mb-4">Look up Medicine Batch</h2>
+              <h2 className="text-lg font-semibold mb-4">
+                Look up Medicine Batch
+              </h2>
               <div className="flex gap-3">
                 <input
                   type="text"
@@ -138,7 +143,9 @@ export default function HospitalDashboard() {
             </div>
 
             {actionResult && (
-              <div className={`rounded-xl p-4 text-sm ${actionResult.ok ? "bg-green-500/20 border border-green-500/30 text-green-300" : "bg-red-500/20 border border-red-500/30 text-red-300"}`}>
+              <div
+                className={`rounded-xl p-4 text-sm ${actionResult.ok ? "bg-green-500/20 border border-green-500/30 text-green-300" : "bg-red-500/20 border border-red-500/30 text-red-300"}`}
+              >
                 {actionResult.ok
                   ? `✅ Batch ${actionResult.action === "verify" ? "verified" : "flagged"} — tx: ${actionResult.txHash?.slice(0, 20)}…`
                   : `❌ ${actionResult.error}`}
@@ -155,7 +162,10 @@ export default function HospitalDashboard() {
                     ["Medicine ID", batchData.medicineId],
                     ["Hospital", batchData.hospitalId],
                     ["Manufacturer", batchData.manufacturerId],
-                    ["Expiry", new Date(batchData.expiryDate).toLocaleDateString()],
+                    [
+                      "Expiry",
+                      new Date(batchData.expiryDate).toLocaleDateString(),
+                    ],
                   ].map(([k, v]) => (
                     <div key={k}>
                       <div className="text-xs text-slate-400 mb-1">{k}</div>
@@ -166,12 +176,18 @@ export default function HospitalDashboard() {
 
                 {/* Current status badge */}
                 <div className="flex items-center gap-3">
-                  <span className="text-sm text-slate-400">Current Status:</span>
-                  <span className={`${statusColor[batchData.currentStatus] || "bg-slate-600"} text-white text-xs font-bold px-3 py-1 rounded-full`}>
+                  <span className="text-sm text-slate-400">
+                    Current Status:
+                  </span>
+                  <span
+                    className={`${statusColor[batchData.currentStatus] || "bg-slate-600"} text-white text-xs font-bold px-3 py-1 rounded-full`}
+                  >
                     {batchData.currentStatus}
                   </span>
                   {batchData.currentFlagReason !== "NONE" && (
-                    <span className="text-xs text-red-400">({batchData.currentFlagReason.replace(/_/g, " ")})</span>
+                    <span className="text-xs text-red-400">
+                      ({batchData.currentFlagReason.replace(/_/g, " ")})
+                    </span>
                   )}
                 </div>
 
@@ -197,18 +213,28 @@ export default function HospitalDashboard() {
 
                 {/* History timeline */}
                 <div>
-                  <h3 className="text-sm font-semibold text-slate-300 mb-3">Status History</h3>
+                  <h3 className="text-sm font-semibold text-slate-300 mb-3">
+                    Status History
+                  </h3>
                   <div className="space-y-2">
                     {batchData.history?.map((h, i) => (
                       <div key={i} className="flex items-start gap-3 text-sm">
-                        <span className={`${statusColor[h.status] || "bg-slate-600"} text-white text-xs px-2 py-0.5 rounded-full mt-0.5 shrink-0`}>
+                        <span
+                          className={`${statusColor[h.status] || "bg-slate-600"} text-white text-xs px-2 py-0.5 rounded-full mt-0.5 shrink-0`}
+                        >
                           {h.status}
                         </span>
                         <div className="text-slate-300">
                           {new Date(h.timestamp).toLocaleString()}
-                          {h.locationId && <span className="text-slate-500 ml-2">@ {h.locationId.slice(0, 12)}…</span>}
+                          {h.locationId && (
+                            <span className="text-slate-500 ml-2">
+                              @ {h.locationId.slice(0, 12)}…
+                            </span>
+                          )}
                           {h.flagReason !== "NONE" && (
-                            <span className="text-red-400 ml-2">⚠ {h.flagReason.replace(/_/g, " ")}</span>
+                            <span className="text-red-400 ml-2">
+                              ⚠ {h.flagReason.replace(/_/g, " ")}
+                            </span>
                           )}
                         </div>
                       </div>
@@ -219,11 +245,18 @@ export default function HospitalDashboard() {
                 {/* Images */}
                 {batchData.images?.length > 0 && (
                   <div>
-                    <h3 className="text-sm font-semibold text-slate-300 mb-3">Proof Images</h3>
+                    <h3 className="text-sm font-semibold text-slate-300 mb-3">
+                      Proof Images
+                    </h3>
                     <div className="flex flex-wrap gap-3">
                       {batchData.images.map((img, i) => (
-                        <a key={i} href={img.image_path} target="_blank" rel="noopener noreferrer"
-                          className="bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-xs text-blue-300 hover:text-blue-200">
+                        <a
+                          key={i}
+                          href={`/api/images/${img.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-xs text-blue-300 hover:text-blue-200"
+                        >
                           Image #{i + 1} (step {img.status_step})
                         </a>
                       ))}
@@ -238,35 +271,49 @@ export default function HospitalDashboard() {
         {/* ── Register Manufacturer Tab ──────────────────────────────────────── */}
         {activeTab === "register" && (
           <div className="bg-white/5 border border-white/10 rounded-2xl p-6 max-w-md">
-            <h2 className="text-lg font-semibold mb-4">Register New Manufacturer</h2>
+            <h2 className="text-lg font-semibold mb-4">
+              Register New Manufacturer
+            </h2>
             <p className="text-sm text-slate-400 mb-6">
               Credentials will be bcrypt-hashed and stored on-chain.
             </p>
 
             {regResult && (
-              <div className={`rounded-xl p-4 text-sm mb-4 ${regResult.ok ? "bg-green-500/20 border border-green-500/30 text-green-300" : "bg-red-500/20 border border-red-500/30 text-red-300"}`}>
-                {regResult.ok ? `✅ Manufacturer registered — tx: ${regResult.txHash?.slice(0, 20)}…` : `❌ ${regResult.error}`}
+              <div
+                className={`rounded-xl p-4 text-sm mb-4 ${regResult.ok ? "bg-green-500/20 border border-green-500/30 text-green-300" : "bg-red-500/20 border border-red-500/30 text-red-300"}`}
+              >
+                {regResult.ok
+                  ? `✅ Manufacturer registered — tx: ${regResult.txHash?.slice(0, 20)}…`
+                  : `❌ ${regResult.error}`}
               </div>
             )}
 
             <form onSubmit={registerManufacturer} className="space-y-4">
               <div>
-                <label className="block text-sm text-slate-300 mb-1">Manufacturer User ID</label>
+                <label className="block text-sm text-slate-300 mb-1">
+                  Manufacturer User ID
+                </label>
                 <input
                   type="text"
                   value={regForm.userId}
-                  onChange={(e) => setRegForm({ ...regForm, userId: e.target.value })}
+                  onChange={(e) =>
+                    setRegForm({ ...regForm, userId: e.target.value })
+                  }
                   className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2.5 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-blue-400"
                   placeholder="e.g. manufacturer_001"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm text-slate-300 mb-1">Password</label>
+                <label className="block text-sm text-slate-300 mb-1">
+                  Password
+                </label>
                 <input
                   type="password"
                   value={regForm.password}
-                  onChange={(e) => setRegForm({ ...regForm, password: e.target.value })}
+                  onChange={(e) =>
+                    setRegForm({ ...regForm, password: e.target.value })
+                  }
                   className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2.5 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-blue-400"
                   placeholder="Assign a password"
                   required
