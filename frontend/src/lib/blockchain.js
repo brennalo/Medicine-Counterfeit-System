@@ -81,8 +81,8 @@ export function hashLocationData(name, locationType, address, lat, lng) {
 
 // ─── Image proof hash ─────────────────────────────────────────────────────────
 
-export function hashImageRef(imageDbId) {
-  return ethers.keccak256(ethers.toUtf8Bytes(imageDbId.toString()));
+export function hashImageRef(imageBuffer) {
+  return ethers.keccak256(new Uint8Array(imageBuffer));
 }
 
 // ─── Batch data hash (for integrity verification) ─────────────────────────────
