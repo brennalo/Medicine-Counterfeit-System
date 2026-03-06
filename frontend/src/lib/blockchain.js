@@ -33,7 +33,7 @@ export function getUserRegistry() {
   return new ethers.Contract(
     deployments.contracts.UserRegistry,
     UserRegistryABI,
-    getSigner()
+    getSigner(),
   );
 }
 
@@ -41,7 +41,7 @@ export function getLocationRegistry() {
   return new ethers.Contract(
     deployments.contracts.LocationRegistry,
     LocationRegistryABI,
-    getSigner()
+    getSigner(),
   );
 }
 
@@ -49,17 +49,22 @@ export function getMedicineRegistry() {
   return new ethers.Contract(
     deployments.contracts.MedicineRegistry,
     MedicineRegistryABI,
-    getSigner()
+    getSigner(),
   );
 }
 
 // ─── Batch ID generation (mirrors Solidity logic) ─────────────────────────────
 
-export function generateBatchId(medicineId, manufacturerId, hospitalId, expiryDate) {
+export function generateBatchId(
+  medicineId,
+  manufacturerId,
+  hospitalId,
+  expiryDate,
+) {
   const nonce = Date.now();
   const packed = ethers.solidityPacked(
     ["string", "string", "string", "uint256", "uint256"],
-    [medicineId, manufacturerId, hospitalId, expiryDate, nonce]
+    [medicineId, manufacturerId, hospitalId, expiryDate, nonce],
   );
   return ethers.keccak256(packed);
 }
@@ -69,7 +74,7 @@ export function generateBatchId(medicineId, manufacturerId, hospitalId, expiryDa
 export function hashLocationData(name, locationType, address, lat, lng) {
   const packed = ethers.solidityPacked(
     ["string", "string", "string", "string", "string"],
-    [name, locationType.toString(), address, lat.toString(), lng.toString()]
+    [name, locationType.toString(), address, lat.toString(), lng.toString()],
   );
   return ethers.keccak256(packed);
 }
@@ -78,4 +83,19 @@ export function hashLocationData(name, locationType, address, lat, lng) {
 
 export function hashImageRef(imageDbId) {
   return ethers.keccak256(ethers.toUtf8Bytes(imageDbId.toString()));
+}
+
+// ─── Batch data hash (for integrity verification) ─────────────────────────────
+export function hashBatchData(
+  medicineId,
+  medicineName,
+  hospitalId,
+  manufacturerId,
+  expiryTimestamp,
+) {
+  const packed = ethers.solidityPacked(
+    ["string", "string", "string", "string", "uint256"],
+    [medicineId, medicineName, hospitalId, manufacturerId, expiryTimestamp],
+  );
+  return ethers.keccak256(packed);
 }

@@ -38,18 +38,12 @@ async function handler(request) {
     const formData = await request.formData();
     const batchId = formData.get("batchId");
     const newStatus = parseInt(formData.get("newStatus"));
-    const locationId = formData.get("locationId");
     const currentLat = parseFloat(formData.get("currentLat"));
     const currentLng = parseFloat(formData.get("currentLng"));
+    const geoAvailable = formData.get("geoAvailable") === "true";
     const imageFile = formData.get("imageProof");
 
-    if (
-      !batchId ||
-      isNaN(newStatus) ||
-      !locationId ||
-      isNaN(currentLat) ||
-      isNaN(currentLng)
-    ) {
+    if (!batchId || isNaN(newStatus)) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 },
@@ -67,11 +61,49 @@ async function handler(request) {
     }
 
     // ── Validate location exists and belongs to this manufacturer ─────────────
+    // ── Step 1: Auto-match nearest location from MySQL ────────────────────────
+    const [locationRows] = await db.execute(
+      "SELECT id, latitude, longitude FROM locations WHERE manufacturer_id = ?",
+      [manufacturerId],
+    );
+
+    let matchedLocationId = null;
+    let locationValid = false;
+
+    if (geoAvailable && locationRows.length > 0) {
+      let minDist = Infinity;
+      for (const loc of locationRows) {
+        const dist = haversineDistance(
+          currentLat,
+          currentLng,
+          parseFloat(loc.latitude),
+          parseFloat(loc.longitude),
+        );
+        if (dist < minDist) {
+          minDist = dist;
+          matchedLocationId = loc.id;
+        }
+      }
+      locationValid = minDist <= ALLOWED_RADIUS_METRES;
+    } else if (!geoAvailable && locationRows.length > 0) {
+      matchedLocationId = locationRows[0].id;
+      locationValid = false;
+    }
+
+    if (!matchedLocationId) {
+      return NextResponse.json(
+        { error: "No registered locations found" },
+        { status: 400 },
+      );
+    }
+
+    // ── Off-chain geolocation check ───────────────────────────────────────────
+    // ── Step 2: Verify on-chain ───────────────────────────────────────────────
     const [, , , locManufacturerId, locExists] =
-      await locationRegistry.getLocation(locationId);
+      await locationRegistry.getLocation(matchedLocationId);
     if (!locExists) {
       return NextResponse.json(
-        { error: "Location not registered" },
+        { error: "Matched location not found on-chain" },
         { status: 404 },
       );
     }
@@ -80,22 +112,6 @@ async function handler(request) {
         { error: "Location not owned by you" },
         { status: 403 },
       );
-    }
-
-    // ── Off-chain geolocation check ───────────────────────────────────────────
-    const [locRow] = await db.execute(
-      "SELECT latitude, longitude FROM locations WHERE id = ?",
-      [locationId],
-    );
-    let locationValid = false;
-    if (locRow.length > 0) {
-      const dist = haversineDistance(
-        currentLat,
-        currentLng,
-        parseFloat(locRow[0].latitude),
-        parseFloat(locRow[0].longitude),
-      );
-      locationValid = dist <= ALLOWED_RADIUS_METRES;
     }
 
     // ── Save image to disk (off-chain), store DB reference ────────────────────
@@ -117,14 +133,14 @@ async function handler(request) {
         [batchId, newStatus, compressedBuffer],
       );
       imageDbId = result.insertId;
-      imageProofHash = hashImageRef(imageDbId);
+      imageProofHash = hashImageRef(compressedBuffer);
     }
 
     // ── Submit to blockchain (with all checks delegated to contract) ──────────
     const tx = await medicineRegistry.updateBatchStatus(
       batchId,
       newStatus,
-      locationId,
+      matchedLocationId,
       imageProofHash,
       locationValid,
       manufacturerId,
@@ -148,6 +164,7 @@ async function handler(request) {
       flagged: !!flagEvent,
       flagReason: flagEvent?.args?.reason?.toString() ?? null,
       locationValid,
+      matchedLocationId,
       imageDbId,
       txHash: tx.hash,
     });

@@ -1,6 +1,6 @@
 // frontend/app/api/batch/[batchId]/route.js
 import { NextResponse } from "next/server";
-import { getMedicineRegistry } from "@/lib/blockchain";
+import { getMedicineRegistry, hashBatchData } from "@/lib/blockchain";
 import db from "@/lib/db";
 
 const STATUS_LABELS = [
@@ -42,6 +42,36 @@ export async function GET(request, { params }) {
 
     if (!exists) {
       return NextResponse.json({ error: "Batch not found" }, { status: 404 });
+    }
+
+    // ── Tamper check: verify MySQL data matches on-chain hash ─────────────────
+    const [offChain] = await db.execute(
+      "SELECT medicine_id, medicine_name, hospital_id, manufacturer_id, expiry_date FROM batch_off_chain WHERE batch_id = ?",
+      [batchId],
+    );
+
+    if (offChain.length > 0) {
+      const row = offChain[0];
+      const expiryTimestamp = Math.floor(
+        new Date(row.expiry_date).getTime() / 1000,
+      );
+      const expectedHash = hashBatchData(
+        row.medicine_id,
+        row.medicine_name,
+        row.hospital_id,
+        row.manufacturer_id,
+        expiryTimestamp,
+      );
+      const onChainHash = await registry.getBatchDataHash(batchId);
+      if (expectedHash !== onChainHash) {
+        console.error(
+          `[TAMPER DETECTED] Batch ${batchId} MySQL data does not match on-chain hash`,
+        );
+        return NextResponse.json(
+          { error: "Batch data integrity check failed" },
+          { status: 500 },
+        );
+      }
     }
 
     // Fetch history
