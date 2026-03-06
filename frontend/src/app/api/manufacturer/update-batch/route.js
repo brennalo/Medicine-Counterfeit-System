@@ -101,13 +101,17 @@ async function handler(request) {
     // ── Step 2: Verify on-chain ───────────────────────────────────────────────
     const [, , , locManufacturerId, locExists] =
       await locationRegistry.getLocation(matchedLocationId);
+    console.log("matchedLocationId:", matchedLocationId);
+    console.log("locExists:", locExists);
+    console.log("locManufacturerId:", locManufacturerId);
+    console.log("manufacturerId:", manufacturerId);
     if (!locExists) {
       return NextResponse.json(
         { error: "Matched location not found on-chain" },
         { status: 404 },
       );
     }
-    if (locManufacturerId !== manufacturerId) {
+    if (locManufacturerId.toLowerCase() !== manufacturerId.toLowerCase()) {
       return NextResponse.json(
         { error: "Location not owned by you" },
         { status: 403 },
