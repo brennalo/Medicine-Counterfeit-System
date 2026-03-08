@@ -5,9 +5,6 @@ import { useRouter } from "next/navigation";
 
 interface User {
   userId: string;
-  name: string;
-  businessId: string;
-  role: number;
   roleName: string;
 }
 
@@ -24,7 +21,7 @@ export default function ManufacturerDashboard() {
     }
 
     const parsedUser = JSON.parse(userData);
-    if (parsedUser.role !== 2) {
+    if (parsedUser.roleName !== "Manufacturer") {
       router.push("/login");
       return;
     }
@@ -51,13 +48,15 @@ export default function ManufacturerDashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-rose-50">
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-lg shadow-lg border-b border-white/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <header className="bg-gradient-to-r from-purple-600 via-pink-600 to-rose-600 shadow-2xl border-b-4 border-purple-700">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-4">
-              <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-3 rounded-2xl">
+            {/* Left Section */}
+            <div className="flex items-center space-x-6">
+              {/* Icon */}
+              <div className="bg-white/20 backdrop-blur-lg p-4 rounded-2xl hover:bg-white/30 transition-all">
                 <svg
-                  className="w-8 h-8 text-white"
+                  className="w-10 h-10 text-white"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -70,21 +69,48 @@ export default function ManufacturerDashboard() {
                   />
                 </svg>
               </div>
-              <div>
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+
+              {/* Title & Welcome */}
+              <div className="flex flex-col">
+                <h1 className="text-4xl font-bold text-white drop-shadow-lg">
                   Manufacturer Dashboard
                 </h1>
-                <p className="text-sm text-gray-600 font-medium">
-                  Welcome back, {user.name} 👋
+                <p className="text-pink-100 font-medium mt-1">
+                  Welcome back,{" "}
+                  <span className="font-bold text-white">{user.userId}</span> 👋
                 </p>
               </div>
             </div>
-            <button
-              onClick={handleLogout}
-              className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-3 rounded-xl transition-all transform hover:scale-105 shadow-lg font-semibold"
-            >
-              Logout
-            </button>
+
+            {/* Right Section */}
+            <div className="flex items-center space-x-4">
+              {/* Status Badge */}
+              <div className="bg-white/20 backdrop-blur-lg px-6 py-3 rounded-xl hidden md:flex items-center space-x-2">
+                <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
+                <span className="text-white font-semibold">Online</span>
+              </div>
+
+              {/* Logout Button */}
+              <button
+                onClick={handleLogout}
+                className="bg-white hover:bg-red-50 text-red-600 font-bold px-8 py-3 rounded-xl transition-all transform hover:scale-105 shadow-lg hover:shadow-xl flex items-center space-x-2"
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                  />
+                </svg>
+                <span>Logout</span>
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -119,18 +145,6 @@ export default function ManufacturerDashboard() {
                 User ID
               </p>
               <p className="font-bold text-lg text-gray-900">{user.userId}</p>
-            </div>
-            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-4 rounded-xl">
-              <p className="text-sm text-gray-600 font-semibold mb-1">Name</p>
-              <p className="font-bold text-lg text-gray-900">{user.name}</p>
-            </div>
-            <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-4 rounded-xl">
-              <p className="text-sm text-gray-600 font-semibold mb-1">
-                Business ID
-              </p>
-              <p className="font-bold text-lg text-gray-900">
-                {user.businessId}
-              </p>
             </div>
             <div className="bg-gradient-to-br from-yellow-50 to-orange-50 p-4 rounded-xl">
               <p className="text-sm text-gray-600 font-semibold mb-1">Role</p>

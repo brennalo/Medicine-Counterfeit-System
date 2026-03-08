@@ -37,11 +37,9 @@ export default function Login() {
       sessionStorage.setItem("user", JSON.stringify(data.user));
 
       // Route based on user role
-      if (data.user.role === 1) {
-        // Hospital
+      if (data.user.roleName === "Hospital") {
         router.push("/hospital/dashboard");
-      } else if (data.user.role === 2) {
-        // Manufacturer
+      } else if (data.user.roleName === "Manufacturer") {
         router.push("/manufacturer/dashboard");
       } else {
         throw new Error("Invalid user role");
