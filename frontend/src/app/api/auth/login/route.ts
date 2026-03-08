@@ -35,14 +35,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Use role from verifyCredentials
+    const roleNumber = Number(role);
+    const roleName =
+      roleNumber === 1
+        ? "Hospital"
+        : roleNumber === 2
+          ? "Manufacturer"
+          : "Unknown";
+
     return NextResponse.json({
       success: true,
       user: {
         userId,
-        name,
-        businessId,
-        role: Number(userRole),
-        roleName: userRole === UserRole.Hospital ? "Hospital" : "Manufacturer",
+        roleName,
       },
     });
   } catch (error: any) {
