@@ -396,8 +396,8 @@ export default function ManufacturerDashboard() {
             <span className="font-semibold">Manufacturer Portal</span>
           </div>
           <button
-            onClick={() => {
-              document.cookie = "auth_token=; max-age=0";
+            onClick={async () => {
+              await fetch("/api/auth/logout", { method: "POST" });
               window.location.href = "/";
             }}
             className="text-sm text-slate-400 hover:text-white transition-colors"

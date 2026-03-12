@@ -46,5 +46,12 @@ CREATE TABLE IF NOT EXISTS batch_off_chain (
   manufacturer_id VARCHAR(64) NOT NULL,
   expiry_date   DATETIME NOT NULL,
   created_at    DATETIME DEFAULT CURRENT_TIMESTAMP
+); //currently not used, but can store off-chain batch details if desired
+
+CREATE TABLE hospital_flag_reasons (
+      batch_id    VARCHAR(128) PRIMARY KEY,
+      hospital_id VARCHAR(64) NOT NULL,
+      reason      TEXT NOT NULL,
+      flagged_at  DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 */

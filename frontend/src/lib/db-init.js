@@ -2,16 +2,16 @@
 // Run with: node frontend/lib/db-init.js
 // Creates all required MySQL tables
 
-require('dotenv').config({ path: '.env.local' });
-const mysql = require('mysql2/promise');
+require("dotenv").config({ path: ".env.local" });
+const mysql = require("mysql2/promise");
 
 async function init() {
   const conn = await mysql.createConnection({
-    host: process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.DB_PORT || '3306'),
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || '12345',
-    database: process.env.DB_NAME || 'pharmachain_bcd',
+    host: process.env.DB_HOST || "localhost",
+    port: parseInt(process.env.DB_PORT || "3306"),
+    user: process.env.DB_USER || "root",
+    password: process.env.DB_PASSWORD || "12345",
+    database: process.env.DB_NAME || "pharmachain_bcd",
     multipleStatements: true,
   });
 
@@ -42,7 +42,7 @@ async function init() {
       INDEX idx_batch (batch_id)
     );
 
-    CREATE TABLE batch_off_chain (
+    /* CREATE TABLE batch_off_chain (
       batch_id        VARCHAR(128) PRIMARY KEY,
       medicine_id     VARCHAR(64) NOT NULL,
       medicine_name   VARCHAR(255) NOT NULL,
@@ -50,7 +50,7 @@ async function init() {
       manufacturer_id VARCHAR(64) NOT NULL,
       expiry_date     DATETIME NOT NULL,
       created_at      DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
+    ); */
 
     CREATE TABLE hospital_flag_reasons (
       batch_id    VARCHAR(128) PRIMARY KEY,
@@ -61,7 +61,7 @@ async function init() {
   `;
 
   await conn.query(schema);
-  console.log('✅ Database schema initialised.');
+  console.log("✅ Database schema initialised.");
   await conn.end();
 }
 

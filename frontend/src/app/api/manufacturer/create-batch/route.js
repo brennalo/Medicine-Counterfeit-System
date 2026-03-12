@@ -7,7 +7,6 @@ import {
   hashBatchData,
 } from "@/lib/blockchain";
 import { withAuth } from "@/lib/auth";
-import db from "@/lib/db";
 
 /**
  * POST body: {
@@ -94,22 +93,6 @@ async function handler(request) {
       batchDataHash,
     );
     await tx.wait();
-
-    // Mirror to MySQL for fast querying
-    await db.execute(
-      `INSERT INTO batch_off_chain
-         (batch_id, medicine_id, medicine_name, hospital_id, manufacturer_id, expiry_date)
-       VALUES (?, ?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE batch_id = batch_id`,
-      [
-        batchId,
-        medicineId,
-        medicineName,
-        hospitalId,
-        manufacturerId,
-        new Date(expiryDate),
-      ],
-    );
 
     return NextResponse.json({
       success: true,
