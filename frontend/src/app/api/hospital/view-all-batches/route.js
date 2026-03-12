@@ -1,4 +1,4 @@
-// frontend/app/api/hospital/flagged-batches/route.js
+// frontend/app/api/hospital/view-all-batches/route.js
 import { NextResponse } from 'next/server';
 import { getMedicineRegistry } from '@/lib/blockchain';
 import { withAuth } from '@/lib/auth';
@@ -13,12 +13,13 @@ const FLAG_REASON_LABELS = [
   'Hospital Flagged',
 ];
 
-// Status codes from contract: 3=DELIVERED, 4=VERIFIED, 5=FLAGGED
-const TERMINAL_STATUSES = new Set([3, 4, 5]);
+// Status codes from contract: 4=DELIVERED, 5=VERIFIED, 6=FLAGGED
+const TERMINAL_STATUSES = new Set([4, 5, 6]);
 const STATUS_NAMES = [
   'CREATED',
   'SHIPPED',
   'SORTED',
+  'DISTRIBUTED',
   'DELIVERED',
   'VERIFIED',
   'FLAGGED',
@@ -58,16 +59,10 @@ async function handler(request) {
         [batchId, hospitalId],
       );
 
-      // Get medicine name from off-chain if not on-chain
-      const [offChain] = await db.execute(
-        'SELECT medicine_name FROM batch_off_chain WHERE batch_id = ?',
-        [batchId],
-      );
-
       batches.push({
         batchId,
         medicineId,
-        medicineName: medicineName || offChain[0]?.medicine_name || 'Unknown',
+        medicineName: medicineName || 'Unknown',
         manufacturerId,
         expiryDate: new Date(Number(expiryDate) * 1000).toISOString(),
         createdAt: new Date(Number(createdAt) * 1000).toISOString(),
