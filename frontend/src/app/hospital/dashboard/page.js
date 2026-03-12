@@ -408,7 +408,7 @@ export default function HospitalDashboard() {
                       {batchData.images.map((img, i) => (
                         <a
                           key={i}
-                          href={img.image_path}
+                          href={`/api/images/${img.id}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-xs text-blue-300 hover:text-blue-200 transition-colors"
