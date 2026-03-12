@@ -19,9 +19,10 @@ contract MedicineRegistry {
         CREATED,      // 0
         SHIPPED,      // 1
         SORTED,       // 2
-        DELIVERED,    // 3
-        VERIFIED,     // 4
-        FLAGGED       // 5
+        DISTRIBUTED,    // 3
+        DELIVERED,    // 4
+        VERIFIED,     // 5
+        FLAGGED       //
     }
 
     enum FlagReason {
@@ -258,9 +259,9 @@ contract MedicineRegistry {
         BatchStatus finalStatus = desiredStatus;
 
         // ── Check 1: Status order validation ──────────────────────────────────
-        // CREATED(0)->SHIPPED(1)->SORTED(2)->DELIVERED(3) must be sequential +1
+        // CREATED(0)->SHIPPED(1)->SORTED(2)->DISTRIBUTED(3)->DELIVERED(4) must be sequential +1
         if (uint8(desiredStatus) != uint8(batch.currentStatus) + 1
-            || uint8(desiredStatus) > 3) {
+            || uint8(desiredStatus) > 4) {
             flagReason = FlagReason.INVALID_STATUS_ORDER;
             finalStatus = BatchStatus.FLAGGED;
         }
