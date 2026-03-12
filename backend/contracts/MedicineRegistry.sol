@@ -22,7 +22,7 @@ contract MedicineRegistry {
         DISTRIBUTED,    // 3
         DELIVERED,    // 4
         VERIFIED,     // 5
-        FLAGGED       //
+        FLAGGED       // 6
     }
 
     enum FlagReason {
