@@ -179,6 +179,7 @@ export default function HospitalDashboard() {
     CREATED: 'bg-slate-500',
     SHIPPED: 'bg-blue-500',
     SORTED: 'bg-yellow-500',
+    DISTRIBUTED: 'bg-orange-500',
     DELIVERED: 'bg-green-500',
     VERIFIED: 'bg-emerald-500',
     FLAGGED: 'bg-red-500',
@@ -196,6 +197,22 @@ export default function HospitalDashboard() {
 
   const filterOptions = [
     { key: 'ALL', label: 'All', color: 'bg-white/10 text-slate-300' },
+    {
+      key: 'CREATED',
+      label: 'Created',
+      color: 'bg-slate-500/20 text-slate-300',
+    },
+    { key: 'SHIPPED', label: 'Shipped', color: 'bg-blue-500/20 text-blue-300' },
+    {
+      key: 'SORTED',
+      label: 'Sorted',
+      color: 'bg-yellow-500/20 text-yellow-300',
+    },
+    {
+      key: 'DISTRIBUTED',
+      label: 'Distributed',
+      color: 'bg-orange-500/20 text-orange-300',
+    },
     {
       key: 'DELIVERED',
       label: 'Delivered',
@@ -243,7 +260,7 @@ export default function HospitalDashboard() {
         {/* Tabs */}
         <div className="flex gap-2 mb-8 flex-wrap">
           {[
-            { key: 'verify', label: 'Search Batch' },
+            { key: 'verify', label: 'Verify / Flag Batch' },
             { key: 'batches', label: '📋 View All Batches' },
             { key: 'register', label: 'Register Manufacturer' },
           ].map((tab) => (
@@ -408,7 +425,7 @@ export default function HospitalDashboard() {
                       {batchData.images.map((img, i) => (
                         <a
                           key={i}
-                          href={`/api/images/${img.id}`}
+                          href={img.image_path}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-xs text-blue-300 hover:text-blue-200 transition-colors"
@@ -432,8 +449,8 @@ export default function HospitalDashboard() {
               <div>
                 <h2 className="text-lg font-semibold">All Batches</h2>
                 <p className="text-sm text-slate-400 mt-1">
-                  Delivered, verified, and flagged batches assigned to your
-                  hospital.
+                  All medicine batches assigned to your hospital across all
+                  stages.
                 </p>
               </div>
               <button
@@ -506,7 +523,7 @@ export default function HospitalDashboard() {
                 {filteredBatches.map((batch) => (
                   <div
                     key={batch.batchId}
-                    className={`bg-white/5 rounded-2xl p-8 border ${
+                    className={`bg-white/5 rounded-2xl p-5 border ${
                       batch.status === 'FLAGGED'
                         ? 'border-red-500/20'
                         : batch.status === 'VERIFIED'
