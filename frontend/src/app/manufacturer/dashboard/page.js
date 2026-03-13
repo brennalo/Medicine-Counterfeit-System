@@ -27,6 +27,84 @@ function MapPicker({ onLocationSelect, selectedCoords }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markerRef = useRef(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+
+  const placeMarker = useCallback(
+    (L, lat, lng, address) => {
+      if (markerRef.current) {
+        markerRef.current.setLatLng([lat, lng]);
+      } else {
+        markerRef.current = L.marker([lat, lng]).addTo(mapInstanceRef.current);
+      }
+      mapInstanceRef.current.setView([lat, lng], 15);
+      onLocationSelect({ lat, lng, address });
+    },
+    [onLocationSelect],
+  );
+
+  async function searchLocation() {
+    if (!searchQuery.trim()) return;
+    setSearching(true);
+    setSearchResults([]);
+
+    // Strip lot/unit prefixes and clean up the query for Nominatim
+    const cleaned = searchQuery
+      .replace(/^(lot|no|unit|blok|block)[\s\d,.-]*/gi, '') // remove "Lot 8," etc
+      .replace(/\b\d{5}\b/g, '') // remove postcodes
+      .replace(/wilayah persekutuan/gi, '') // remove verbose admin terms
+      .replace(/,\s*,/g, ',') // clean double commas
+      .trim();
+
+    const queries = [searchQuery, cleaned].filter(Boolean);
+
+    try {
+      let results = [];
+
+      for (const q of queries) {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=5&countrycodes=my&addressdetails=1`,
+        );
+        const data = await res.json();
+        if (data.length > 0) {
+          results = data;
+          break; // use first query that returns results
+        }
+      }
+
+      if (results.length === 0) {
+        setSearchResults([
+          {
+            place_id: 'none',
+            display_name: 'No results found — try a landmark or area name',
+            disabled: true,
+          },
+        ]);
+      } else {
+        setSearchResults(results);
+      }
+    } catch (err) {
+      setSearchResults([
+        {
+          place_id: 'error',
+          display_name: `Search failed: ${err.message}`,
+          disabled: true,
+        },
+      ]);
+    } finally {
+      setSearching(false);
+    }
+  }
+
+  function selectResult(result) {
+    if (result.disabled) return; // ← add this
+    const lat = parseFloat(result.lat);
+    const lng = parseFloat(result.lon);
+    placeMarker(window.L, lat, lng, result.display_name);
+    setSearchResults([]);
+    setSearchQuery(result.display_name);
+  }
 
   useEffect(() => {
     if (mapInstanceRef.current) return;
@@ -43,6 +121,10 @@ function MapPicker({ onLocationSelect, selectedCoords }) {
     script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
     script.onload = () => {
       const L = window.L;
+
+      if (mapRef.current._leaflet_id) {
+        mapRef.current._leaflet_id = null;
+      }
       const map = L.map(mapRef.current).setView([3.139, 101.6869], 12);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors',
@@ -50,26 +132,20 @@ function MapPicker({ onLocationSelect, selectedCoords }) {
 
       map.on('click', (e) => {
         const { lat, lng } = e.latlng;
-        if (markerRef.current) markerRef.current.setLatLng([lat, lng]);
-        else markerRef.current = L.marker([lat, lng]).addTo(map);
-
         fetch(
           `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
         )
           .then((r) => r.json())
           .then((d) =>
-            onLocationSelect({
+            placeMarker(
+              L,
               lat,
               lng,
-              address: d.display_name || `${lat.toFixed(6)}, ${lng.toFixed(6)}`,
-            }),
+              d.display_name || `${lat.toFixed(6)}, ${lng.toFixed(6)}`,
+            ),
           )
           .catch(() =>
-            onLocationSelect({
-              lat,
-              lng,
-              address: `${lat.toFixed(6)}, ${lng.toFixed(6)}`,
-            }),
+            placeMarker(L, lat, lng, `${lat.toFixed(6)}, ${lng.toFixed(6)}`),
           );
       });
 
@@ -84,19 +160,59 @@ function MapPicker({ onLocationSelect, selectedCoords }) {
         markerRef.current = null;
       }
     };
-  }, [onLocationSelect]);
+  }, [placeMarker]);
 
   return (
-    <div>
+    <div className="space-y-2">
+      {/* Search bar */}
+      <div className="relative">
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && searchLocation()}
+            placeholder="Search for road addresses or area names..."
+            className="flex-1 bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-white placeholder-white/30 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
+          />
+          <button
+            type="button"
+            onClick={searchLocation}
+            disabled={searching}
+            className="bg-violet-600 hover:bg-violet-500 disabled:opacity-50 px-4 py-2 rounded-lg text-sm text-white transition-colors"
+          >
+            {searching ? '…' : 'Search'}
+          </button>
+        </div>
+
+        {/* Dropdown results */}
+        {searchResults.length > 0 && (
+          <ul className="absolute z-10 mt-1 w-full bg-slate-800 border border-white/10 rounded-lg shadow-xl overflow-hidden">
+            {searchResults.map((r) => (
+              <li key={r.place_id}>
+                <button
+                  type="button"
+                  onClick={() => selectResult(r)}
+                  className="w-full text-left px-4 py-2.5 text-sm text-slate-200 hover:bg-white/10 transition-colors border-b border-white/5 last:border-0"
+                >
+                  {r.display_name}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {/* Map */}
       <div
         ref={mapRef}
         style={{ height: '300px', borderRadius: '12px', zIndex: 0 }}
       />
-      <p className="text-xs text-slate-400 mt-2">
-        📍 Click anywhere on the map to pin your location
+      <p className="text-xs text-slate-400">
+        📍 Search for a location above, or click anywhere on the map to pin it
       </p>
       {selectedCoords && (
-        <div className="mt-2 bg-white/5 rounded-lg px-3 py-2 text-xs text-green-400">
+        <div className="bg-white/5 rounded-lg px-3 py-2 text-xs text-green-400">
           Selected: {selectedCoords.lat.toFixed(6)},{' '}
           {selectedCoords.lng.toFixed(6)}
         </div>
@@ -267,6 +383,10 @@ export default function ManufacturerDashboard() {
   async function updateBatchStatus() {
     if (!batchInfo) return;
     const nextStatusCode = NEXT_STATUS[batchInfo.currentStatus];
+    if (!imageRef.current?.files[0]) {
+      alert('Please attach an image proof before updating');
+      return;
+    }
     if (!nextStatusCode) {
       alert('No further status update possible');
       return;
@@ -601,7 +721,7 @@ export default function ManufacturerDashboard() {
           </div>
         )}
 
-        {/* ── Register Location Tab ──────────────────────────────────────────── */}
+        {/* ── Register Location ─────────────────────────────────────────────── */}
         {activeTab === 'locations' && (
           <div className="bg-white/5 border border-white/10 rounded-2xl p-6 max-w-2xl">
             <h2 className="text-lg font-semibold mb-2">
@@ -611,7 +731,6 @@ export default function ManufacturerDashboard() {
               Pin your location on the map — coordinates and address are
               extracted automatically.
             </p>
-
             {locResult && (
               <div
                 className={`rounded-xl p-4 text-sm mb-4 ${locResult.ok ? 'bg-green-500/20 border border-green-500/30 text-green-300' : 'bg-red-500/20 border border-red-500/30 text-red-300'}`}
@@ -632,7 +751,6 @@ export default function ManufacturerDashboard() {
                 )}
               </div>
             )}
-
             <form onSubmit={registerLocation} className="space-y-5">
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -709,7 +827,6 @@ export default function ManufacturerDashboard() {
             </form>
           </div>
         )}
-
         {/* ── Update Batch Status Tab ────────────────────────────────────────── */}
         {activeTab === 'update' && (
           <div className="max-w-lg">

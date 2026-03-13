@@ -1,5 +1,208 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+
+// ── Leaflet map picker ────────────────────────────────────────────────────────
+function MapPicker({ onLocationSelect, selectedCoords }) {
+  const mapRef = useRef(null);
+  const mapInstanceRef = useRef(null);
+  const markerRef = useRef(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+
+  const placeMarker = useCallback(
+    (L, lat, lng, address) => {
+      if (markerRef.current) {
+        markerRef.current.setLatLng([lat, lng]);
+      } else {
+        markerRef.current = L.marker([lat, lng]).addTo(mapInstanceRef.current);
+      }
+      mapInstanceRef.current.setView([lat, lng], 15);
+      onLocationSelect({ lat, lng, address });
+    },
+    [onLocationSelect],
+  );
+
+  async function searchLocation() {
+    if (!searchQuery.trim()) return;
+    setSearching(true);
+    setSearchResults([]);
+
+    // Strip lot/unit prefixes and clean up the query for Nominatim
+    const cleaned = searchQuery
+      .replace(/^(lot|no|unit|blok|block)[\s\d,.-]*/gi, '') // remove "Lot 8," etc
+      .replace(/\b\d{5}\b/g, '') // remove postcodes
+      .replace(/wilayah persekutuan/gi, '') // remove verbose admin terms
+      .replace(/,\s*,/g, ',') // clean double commas
+      .trim();
+
+    const queries = [searchQuery, cleaned].filter(Boolean);
+
+    try {
+      let results = [];
+
+      for (const q of queries) {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=5&countrycodes=my&addressdetails=1`,
+        );
+        const data = await res.json();
+        if (data.length > 0) {
+          results = data;
+          break; // use first query that returns results
+        }
+      }
+
+      if (results.length === 0) {
+        setSearchResults([
+          {
+            place_id: 'none',
+            display_name: 'No results found — try a landmark or area name',
+            disabled: true,
+          },
+        ]);
+      } else {
+        setSearchResults(results);
+      }
+    } catch (err) {
+      setSearchResults([
+        {
+          place_id: 'error',
+          display_name: `Search failed: ${err.message}`,
+          disabled: true,
+        },
+      ]);
+    } finally {
+      setSearching(false);
+    }
+  }
+
+  function selectResult(result) {
+    if (result.disabled) return; // ← add this
+    const lat = parseFloat(result.lat);
+    const lng = parseFloat(result.lon);
+    placeMarker(window.L, lat, lng, result.display_name);
+    setSearchResults([]);
+    setSearchQuery(result.display_name);
+  }
+
+  useEffect(() => {
+    if (mapInstanceRef.current) return;
+
+    if (!document.querySelector('#leaflet-css')) {
+      const link = document.createElement('link');
+      link.id = 'leaflet-css';
+      link.rel = 'stylesheet';
+      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+      document.head.appendChild(link);
+    }
+
+    const script = document.createElement('script');
+    script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+    script.onload = () => {
+      const L = window.L;
+
+      if (mapRef.current._leaflet_id) {
+        mapRef.current._leaflet_id = null;
+      }
+      const map = L.map(mapRef.current).setView([3.139, 101.6869], 12);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+      }).addTo(map);
+
+      map.on('click', (e) => {
+        const { lat, lng } = e.latlng;
+        fetch(
+          `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
+        )
+          .then((r) => r.json())
+          .then((d) =>
+            placeMarker(
+              L,
+              lat,
+              lng,
+              d.display_name || `${lat.toFixed(6)}, ${lng.toFixed(6)}`,
+            ),
+          )
+          .catch(() =>
+            placeMarker(L, lat, lng, `${lat.toFixed(6)}, ${lng.toFixed(6)}`),
+          );
+      });
+
+      mapInstanceRef.current = map;
+    };
+    document.head.appendChild(script);
+
+    return () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+        markerRef.current = null;
+      }
+    };
+  }, [placeMarker]);
+
+  return (
+    <div className="space-y-2">
+      {/* Search bar */}
+      <div className="relative">
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && searchLocation()}
+            placeholder="Search for road addresses or area names..."
+            className="flex-1 bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-white placeholder-white/30 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
+          />
+          <button
+            type="button"
+            onClick={searchLocation}
+            disabled={searching}
+            className="bg-violet-600 hover:bg-violet-500 disabled:opacity-50 px-4 py-2 rounded-lg text-sm text-white transition-colors"
+          >
+            {searching ? '…' : 'Search'}
+          </button>
+        </div>
+
+        {/* Dropdown results */}
+        {searchResults.length > 0 && (
+          <ul className="absolute z-10 mt-1 w-full bg-slate-800 border border-white/10 rounded-lg shadow-xl overflow-hidden">
+            {searchResults.map((r) => (
+              <li key={r.place_id}>
+                <button
+                  type="button"
+                  onClick={() => selectResult(r)}
+                  className="w-full text-left px-4 py-2.5 text-sm text-slate-200 hover:bg-white/10 transition-colors border-b border-white/5 last:border-0"
+                >
+                  {r.display_name}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {/* Map */}
+      <div
+        ref={mapRef}
+        style={{ height: '300px', borderRadius: '12px', zIndex: 0 }}
+      />
+      <p className="text-xs text-slate-400">
+        📍 Search for a location above, or click anywhere on the map to pin it
+      </p>
+      <p className="text-xs text-slate-400">
+        Do note that every hospital can only be assigned to ONE registered
+        location, registering a new location will update the existing record.
+      </p>
+      {selectedCoords && (
+        <div className="bg-white/5 rounded-lg px-3 py-2 text-xs text-green-400">
+          Selected: {selectedCoords.lat.toFixed(6)},{' '}
+          {selectedCoords.lng.toFixed(6)}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ── Flag Reason Modal ─────────────────────────────────────────────────────────
 function FlagModal({ batchId, onConfirm, onCancel }) {
@@ -71,7 +274,49 @@ export default function HospitalDashboard() {
   // ── All batches list + filter ─────────────────────────────────────────────
   const [allBatches, setAllBatches] = useState([]);
   const [batchesLoading, setBatchesLoading] = useState(false);
-  const [statusFilter, setStatusFilter] = useState('ALL'); // ALL | DELIVERED | VERIFIED | FLAGGED
+  const [statusFilter, setStatusFilter] = useState('ALL');
+
+  // ── Hospital Location ─────────────────────────────────────────────────────
+  const [locForm, setLocForm] = useState({
+    name: '',
+    address: '',
+    latitude: null,
+    longitude: null,
+  });
+  const [locResult, setLocResult] = useState(null);
+  const [locLoading, setLocLoading] = useState(false);
+
+  const handleMapSelect = useCallback(({ lat, lng, address }) => {
+    setLocForm((prev) => ({ ...prev, latitude: lat, longitude: lng, address }));
+  }, []);
+
+  async function registerHospitalLocation(e) {
+    e.preventDefault();
+    if (!locForm.latitude || !locForm.longitude) {
+      alert('Please pin your location on the map first');
+      return;
+    }
+    setLocLoading(true);
+    setLocResult(null);
+    try {
+      const res = await fetch('/api/hospital/register-location', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: locForm.name,
+          address: locForm.address,
+          latitude: locForm.latitude,
+          longitude: locForm.longitude,
+        }),
+      });
+      const data = await res.json();
+      setLocResult({ ok: res.ok, ...data });
+      if (res.ok)
+        setLocForm({ name: '', address: '', latitude: null, longitude: null });
+    } finally {
+      setLocLoading(false);
+    }
+  }
 
   useEffect(() => {
     if (activeTab === 'batches') loadAllBatches();
@@ -80,7 +325,7 @@ export default function HospitalDashboard() {
   async function loadAllBatches() {
     setBatchesLoading(true);
     try {
-      const res = await fetch('/api/hospital/view-all-batches');
+      const res = await fetch('/api/hospital/flagged-batches');
       const data = await res.json();
       if (res.ok) setAllBatches(data.batches);
     } finally {
@@ -262,6 +507,7 @@ export default function HospitalDashboard() {
           {[
             { key: 'verify', label: 'Verify / Flag Batch' },
             { key: 'batches', label: '📋 View All Batches' },
+            { key: 'location', label: 'Register Location' },
             { key: 'register', label: 'Register Manufacturer' },
           ].map((tab) => (
             <button
@@ -628,6 +874,92 @@ export default function HospitalDashboard() {
           </div>
         )}
 
+        {/* ── Register Location ─────────────────────────────────────────────── */}
+        {activeTab === 'location' && (
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-6 max-w-2xl">
+            <h2 className="text-lg font-semibold mb-2">
+              Register Verified Location
+            </h2>
+            <p className="text-sm text-slate-400 mb-6">
+              Pin your location on the map — coordinates and address are
+              extracted automatically.
+            </p>
+            {locResult && (
+              <div
+                className={`rounded-xl p-4 text-sm mb-4 ${locResult.ok ? 'bg-green-500/20 border border-green-500/30 text-green-300' : 'bg-red-500/20 border border-red-500/30 text-red-300'}`}
+              >
+                {locResult.ok ? (
+                  <div>
+                    <div>✅ Location registered on-chain</div>
+                    <div className="text-xs mt-1">
+                      ID:{' '}
+                      <span className="font-mono">{locResult.locationId}</span>
+                    </div>
+                    <div className="font-mono text-xs mt-1 break-all opacity-60">
+                      Hash: {locResult.locationDataHash}
+                    </div>
+                  </div>
+                ) : (
+                  `❌ ${locResult.error}`
+                )}
+              </div>
+            )}
+            <form onSubmit={registerHospitalLocation} className="space-y-5">
+              <div className="grid grid-cols-1 gap-4">
+                <label className="block text-sm text-slate-300 mb-1">
+                  Location Name
+                </label>
+                <input
+                  type="text"
+                  value={locForm.name}
+                  onChange={(e) =>
+                    setLocForm({ ...locForm, name: e.target.value })
+                  }
+                  className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2.5 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-violet-400"
+                  placeholder="e.g. Main Hospital - Cheras"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm text-slate-300 mb-2">
+                  Pin Location on Map
+                </label>
+                <MapPicker
+                  onLocationSelect={handleMapSelect}
+                  selectedCoords={
+                    locForm.latitude
+                      ? { lat: locForm.latitude, lng: locForm.longitude }
+                      : null
+                  }
+                />
+              </div>
+
+              {locForm.address && (
+                <div>
+                  <label className="block text-sm text-slate-300 mb-1">
+                    Address (auto-detected)
+                  </label>
+                  <div className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-slate-300 text-sm leading-relaxed">
+                    {locForm.address}
+                  </div>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={locLoading || !locForm.latitude}
+                className="w-full bg-violet-500 hover:bg-violet-400 disabled:opacity-50 text-white font-medium rounded-lg py-2.5 transition-colors"
+              >
+                {locLoading
+                  ? 'Registering on-chain…'
+                  : !locForm.latitude
+                    ? '📍 Pin a location on the map first'
+                    : 'Register Location'}
+              </button>
+            </form>
+          </div>
+        )}
         {/* ── Register Manufacturer Tab ──────────────────────────────────────── */}
         {activeTab === 'register' && (
           <div className="bg-white/5 border border-white/10 rounded-2xl p-6 max-w-md">
