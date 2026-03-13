@@ -1,27 +1,27 @@
 // frontend/app/api/manufacturer/update-batch/route.js
-import { NextResponse } from 'next/server';
+import { NextResponse } from "next/server";
 import {
   getMedicineRegistryAs,
   getMedicineRegistry,
   getLocationRegistry,
   hashImageRef,
-} from '@/lib/blockchain';
-import { withAuth } from '@/lib/auth';
-import db from '@/lib/db';
-import { writeFile, mkdir } from 'fs/promises';
-import path from 'path';
-import sharp from 'sharp';
+} from "@/lib/blockchain";
+import { withAuth } from "@/lib/auth";
+import db from "@/lib/db";
+import { writeFile, mkdir } from "fs/promises";
+import path from "path";
+import sharp from "sharp";
 
-const UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads');
+const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads");
 const ALLOWED_RADIUS_METRES = 500;
 
 const FLAG_REASON_LABELS = [
-  'None',
-  'Near Expiry',
-  'Outside Registered Location',
-  'Duplicate Location Update',
-  'Invalid Status Order',
-  'Hospital Flagged',
+  "None",
+  "Near Expiry",
+  "Outside Registered Location",
+  "Duplicate Location Update",
+  "Invalid Status Order",
+  "Hospital Flagged",
 ];
 
 // Maps: newStatus → required location type in MySQL
@@ -31,10 +31,10 @@ const FLAG_REASON_LABELS = [
 //              SORTED(2)→DISTRIBUTED(3)   must be at DISTRIBUTION_CENTER
 //              DISTRIBUTED(3)→DELIVERED(4) must be at HOSPITAL
 const REQUIRED_LOCATION_TYPE = {
-  1: 'FACTORY',
-  2: 'SORTING_CENTER',
-  3: 'DISTRIBUTION_CENTER',
-  4: 'HOSPITAL',
+  1: "FACTORY",
+  2: "SORTING_CENTER",
+  3: "DISTRIBUTION_CENTER",
+  4: "HOSPITAL",
 };
 
 function haversineDistance(lat1, lon1, lat2, lon2) {
@@ -51,16 +51,16 @@ function haversineDistance(lat1, lon1, lat2, lon2) {
 async function handler(request) {
   try {
     const formData = await request.formData();
-    const batchId = formData.get('batchId');
-    const newStatus = parseInt(formData.get('newStatus'));
-    const currentLat = parseFloat(formData.get('currentLat'));
-    const currentLng = parseFloat(formData.get('currentLng'));
-    const geoAvailable = formData.get('geoAvailable') === 'true';
-    const imageFile = formData.get('imageProof');
+    const batchId = formData.get("batchId");
+    const newStatus = parseInt(formData.get("newStatus"));
+    const currentLat = parseFloat(formData.get("currentLat"));
+    const currentLng = parseFloat(formData.get("currentLng"));
+    const geoAvailable = formData.get("geoAvailable") === "true";
+    const imageFile = formData.get("imageProof");
 
     if (!batchId || isNaN(newStatus)) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: "Missing required fields" },
         { status: 400 },
       );
     }
@@ -73,7 +73,7 @@ async function handler(request) {
 
     const batchExists = await medicineRegistry.batchExistsPublic(batchId);
     if (!batchExists) {
-      return NextResponse.json({ error: 'Batch not found' }, { status: 404 });
+      return NextResponse.json({ error: "Batch not found" }, { status: 404 });
     }
 
     const requiredType = REQUIRED_LOCATION_TYPE[newStatus];
@@ -86,13 +86,13 @@ async function handler(request) {
       const hospitalId = batchData[2]; // index 2 = hospitalId
 
       const [hospLocs] = await db.execute(
-        "SELECT id, name, latitude, longitude, type FROM locations WHERE manufacturer_id = ? AND type = 'HOSPITAL'",
+        "SELECT id, name, latitude, longitude, type FROM locations WHERE user_id = ? AND type = 'HOSPITAL'",
         [hospitalId],
       );
       locationRows = hospLocs;
     } else {
       const [mfrLocs] = await db.execute(
-        'SELECT id, name, latitude, longitude, type FROM locations WHERE manufacturer_id = ? AND type = ?',
+        "SELECT id, name, latitude, longitude, type FROM locations WHERE user_id = ? AND type = ?",
         [manufacturerId, requiredType],
       );
       locationRows = mfrLocs;
@@ -125,13 +125,13 @@ async function handler(request) {
     }
 
     if (!matchedLocationId) {
-      matchedLocationId = 'none';
+      matchedLocationId = "none";
       locationValid = false;
     }
 
     // ── Save image off-chain ──────────────────────────────────────────────────
     let imageDbId = null;
-    let imageProofHash = '0x' + '0'.repeat(64);
+    let imageProofHash = "0x" + "0".repeat(64);
 
     if (imageFile && imageFile.size > 0) {
       const bytes = await imageFile.arrayBuffer();
@@ -144,14 +144,14 @@ async function handler(request) {
 
       // Store compressed image as BLOB in MySQL
       const [result] = await db.execute(
-        'INSERT INTO batch_images (batch_id, status_step, image_blob) VALUES (?, ?, ?)',
+        "INSERT INTO batch_images (batch_id, status_step, image_blob) VALUES (?, ?, ?)",
         [batchId, newStatus, compressedBuffer],
       );
 
       imageDbId = result.insertId;
 
       // Hash actual image bytes for on-chain integrity proof
-      imageProofHash = hashImageRef(buffer);
+      imageProofHash = hashImageRef(compressedBuffer);
     }
 
     // ── Sign with manufacturer's own wallet ───────────────────────────────────
@@ -178,7 +178,7 @@ async function handler(request) {
           return null;
         }
       })
-      .find((e) => e?.name === 'BatchFlagged');
+      .find((e) => e?.name === "BatchFlagged");
 
     const flagReasonIndex = flagEvent ? Number(flagEvent.args?.reason) : 0;
 
@@ -187,7 +187,7 @@ async function handler(request) {
       batchId,
       flagged: !!flagEvent,
       flagReason: flagReasonIndex,
-      flagReasonLabel: FLAG_REASON_LABELS[flagReasonIndex] ?? 'Unknown',
+      flagReasonLabel: FLAG_REASON_LABELS[flagReasonIndex] ?? "Unknown",
       locationValid,
       matchedLocationId,
       locationType,
@@ -196,12 +196,12 @@ async function handler(request) {
       txHash: tx.hash,
     });
   } catch (err) {
-    console.error('[Update Batch]', err);
+    console.error("[Update Batch]", err);
     return NextResponse.json(
-      { error: err?.revert?.args?.[0] || err.message || 'Internal error' },
+      { error: err?.revert?.args?.[0] || err.message || "Internal error" },
       { status: 500 },
     );
   }
 }
 
-export const POST = withAuth(handler, 'MANUFACTURER');
+export const POST = withAuth(handler, "MANUFACTURER");

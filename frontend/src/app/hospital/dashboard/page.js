@@ -1,12 +1,12 @@
-'use client';
-import { useState, useEffect, useRef, useCallback } from 'react';
+"use client";
+import { useState, useEffect, useRef, useCallback } from "react";
 
 // ── Leaflet map picker ────────────────────────────────────────────────────────
 function MapPicker({ onLocationSelect, selectedCoords }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markerRef = useRef(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
 
@@ -30,10 +30,10 @@ function MapPicker({ onLocationSelect, selectedCoords }) {
 
     // Strip lot/unit prefixes and clean up the query for Nominatim
     const cleaned = searchQuery
-      .replace(/^(lot|no|unit|blok|block)[\s\d,.-]*/gi, '') // remove "Lot 8," etc
-      .replace(/\b\d{5}\b/g, '') // remove postcodes
-      .replace(/wilayah persekutuan/gi, '') // remove verbose admin terms
-      .replace(/,\s*,/g, ',') // clean double commas
+      .replace(/^(lot|no|unit|blok|block)[\s\d,.-]*/gi, "") // remove "Lot 8," etc
+      .replace(/\b\d{5}\b/g, "") // remove postcodes
+      .replace(/wilayah persekutuan/gi, "") // remove verbose admin terms
+      .replace(/,\s*,/g, ",") // clean double commas
       .trim();
 
     const queries = [searchQuery, cleaned].filter(Boolean);
@@ -55,8 +55,8 @@ function MapPicker({ onLocationSelect, selectedCoords }) {
       if (results.length === 0) {
         setSearchResults([
           {
-            place_id: 'none',
-            display_name: 'No results found — try a landmark or area name',
+            place_id: "none",
+            display_name: "No results found — try a landmark or area name",
             disabled: true,
           },
         ]);
@@ -66,7 +66,7 @@ function MapPicker({ onLocationSelect, selectedCoords }) {
     } catch (err) {
       setSearchResults([
         {
-          place_id: 'error',
+          place_id: "error",
           display_name: `Search failed: ${err.message}`,
           disabled: true,
         },
@@ -88,16 +88,16 @@ function MapPicker({ onLocationSelect, selectedCoords }) {
   useEffect(() => {
     if (mapInstanceRef.current) return;
 
-    if (!document.querySelector('#leaflet-css')) {
-      const link = document.createElement('link');
-      link.id = 'leaflet-css';
-      link.rel = 'stylesheet';
-      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+    if (!document.querySelector("#leaflet-css")) {
+      const link = document.createElement("link");
+      link.id = "leaflet-css";
+      link.rel = "stylesheet";
+      link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
       document.head.appendChild(link);
     }
 
-    const script = document.createElement('script');
-    script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+    const script = document.createElement("script");
+    script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
     script.onload = () => {
       const L = window.L;
 
@@ -105,11 +105,11 @@ function MapPicker({ onLocationSelect, selectedCoords }) {
         mapRef.current._leaflet_id = null;
       }
       const map = L.map(mapRef.current).setView([3.139, 101.6869], 12);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors',
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "© OpenStreetMap contributors",
       }).addTo(map);
 
-      map.on('click', (e) => {
+      map.on("click", (e) => {
         const { lat, lng } = e.latlng;
         fetch(
           `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
@@ -150,7 +150,7 @@ function MapPicker({ onLocationSelect, selectedCoords }) {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && searchLocation()}
+            onKeyDown={(e) => e.key === "Enter" && searchLocation()}
             placeholder="Search for road addresses or area names..."
             className="flex-1 bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-white placeholder-white/30 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
           />
@@ -160,7 +160,7 @@ function MapPicker({ onLocationSelect, selectedCoords }) {
             disabled={searching}
             className="bg-violet-600 hover:bg-violet-500 disabled:opacity-50 px-4 py-2 rounded-lg text-sm text-white transition-colors"
           >
-            {searching ? '…' : 'Search'}
+            {searching ? "…" : "Search"}
           </button>
         </div>
 
@@ -185,7 +185,7 @@ function MapPicker({ onLocationSelect, selectedCoords }) {
       {/* Map */}
       <div
         ref={mapRef}
-        style={{ height: '300px', borderRadius: '12px', zIndex: 0 }}
+        style={{ height: "300px", borderRadius: "12px", zIndex: 0 }}
       />
       <p className="text-xs text-slate-400">
         📍 Search for a location above, or click anywhere on the map to pin it
@@ -196,7 +196,7 @@ function MapPicker({ onLocationSelect, selectedCoords }) {
       </p>
       {selectedCoords && (
         <div className="bg-white/5 rounded-lg px-3 py-2 text-xs text-green-400">
-          Selected: {selectedCoords.lat.toFixed(6)},{' '}
+          Selected: {selectedCoords.lat.toFixed(6)},{" "}
           {selectedCoords.lng.toFixed(6)}
         </div>
       )}
@@ -206,7 +206,7 @@ function MapPicker({ onLocationSelect, selectedCoords }) {
 
 // ── Flag Reason Modal ─────────────────────────────────────────────────────────
 function FlagModal({ batchId, onConfirm, onCancel }) {
-  const [reason, setReason] = useState('');
+  const [reason, setReason] = useState("");
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-slate-900 border border-red-500/30 rounded-2xl p-6 w-full max-w-md shadow-2xl">
@@ -255,15 +255,15 @@ function FlagModal({ batchId, onConfirm, onCancel }) {
 
 // ── Main Dashboard ────────────────────────────────────────────────────────────
 export default function HospitalDashboard() {
-  const [activeTab, setActiveTab] = useState('verify');
+  const [activeTab, setActiveTab] = useState("verify");
 
   // ── Register Manufacturer ─────────────────────────────────────────────────
-  const [regForm, setRegForm] = useState({ userId: '', password: '' });
+  const [regForm, setRegForm] = useState({ userId: "", password: "" });
   const [regResult, setRegResult] = useState(null);
   const [regLoading, setRegLoading] = useState(false);
 
   // ── Batch lookup & action ─────────────────────────────────────────────────
-  const [batchId, setBatchId] = useState('');
+  const [batchId, setBatchId] = useState("");
   const [batchData, setBatchData] = useState(null);
   const [batchLoading, setBatchLoading] = useState(false);
   const [actionResult, setActionResult] = useState(null);
@@ -271,15 +271,19 @@ export default function HospitalDashboard() {
   // ── Flag modal ────────────────────────────────────────────────────────────
   const [showFlagModal, setShowFlagModal] = useState(false);
 
+  // ── Image Error modal ────────────────────────────────────────────────────────────
+  const [imageError, setImageError] = useState(null);
+  const [imageModal, setImageModal] = useState(null);
+
   // ── All batches list + filter ─────────────────────────────────────────────
   const [allBatches, setAllBatches] = useState([]);
   const [batchesLoading, setBatchesLoading] = useState(false);
-  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [statusFilter, setStatusFilter] = useState("ALL");
 
   // ── Hospital Location ─────────────────────────────────────────────────────
   const [locForm, setLocForm] = useState({
-    name: '',
-    address: '',
+    name: "",
+    address: "",
     latitude: null,
     longitude: null,
   });
@@ -293,15 +297,15 @@ export default function HospitalDashboard() {
   async function registerHospitalLocation(e) {
     e.preventDefault();
     if (!locForm.latitude || !locForm.longitude) {
-      alert('Please pin your location on the map first');
+      alert("Please pin your location on the map first");
       return;
     }
     setLocLoading(true);
     setLocResult(null);
     try {
-      const res = await fetch('/api/hospital/register-location', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/hospital/register-location", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: locForm.name,
           address: locForm.address,
@@ -312,20 +316,20 @@ export default function HospitalDashboard() {
       const data = await res.json();
       setLocResult({ ok: res.ok, ...data });
       if (res.ok)
-        setLocForm({ name: '', address: '', latitude: null, longitude: null });
+        setLocForm({ name: "", address: "", latitude: null, longitude: null });
     } finally {
       setLocLoading(false);
     }
   }
 
   useEffect(() => {
-    if (activeTab === 'batches') loadAllBatches();
+    if (activeTab === "batches") loadAllBatches();
   }, [activeTab]);
 
   async function loadAllBatches() {
     setBatchesLoading(true);
     try {
-      const res = await fetch('/api/hospital/view-all-batches');
+      const res = await fetch("/api/hospital/view-all-batches");
       const data = await res.json();
       if (res.ok) setAllBatches(data.batches);
     } finally {
@@ -335,7 +339,7 @@ export default function HospitalDashboard() {
 
   // Apply filter
   const filteredBatches =
-    statusFilter === 'ALL'
+    statusFilter === "ALL"
       ? allBatches
       : allBatches.filter((b) => b.status === statusFilter);
 
@@ -350,9 +354,9 @@ export default function HospitalDashboard() {
     setRegLoading(true);
     setRegResult(null);
     try {
-      const res = await fetch('/api/hospital/register-manufacturer', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/hospital/register-manufacturer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(regForm),
       });
       const data = await res.json();
@@ -381,13 +385,13 @@ export default function HospitalDashboard() {
     setBatchLoading(true);
     setActionResult(null);
     try {
-      const res = await fetch('/api/hospital/batch-action', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ batchId: batchData.batchId, action: 'verify' }),
+      const res = await fetch("/api/hospital/batch-action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ batchId: batchData.batchId, action: "verify" }),
       });
       const data = await res.json();
-      setActionResult({ ok: res.ok, action: 'verify', ...data });
+      setActionResult({ ok: res.ok, action: "verify", ...data });
       if (res.ok) lookupBatch();
     } finally {
       setBatchLoading(false);
@@ -403,17 +407,17 @@ export default function HospitalDashboard() {
     setBatchLoading(true);
     setActionResult(null);
     try {
-      const res = await fetch('/api/hospital/batch-action', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/hospital/batch-action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           batchId: batchData.batchId,
-          action: 'flag',
+          action: "flag",
           flagReason: reason,
         }),
       });
       const data = await res.json();
-      setActionResult({ ok: res.ok, action: 'flag', ...data });
+      setActionResult({ ok: res.ok, action: "flag", ...data });
       if (res.ok) lookupBatch();
     } finally {
       setBatchLoading(false);
@@ -421,54 +425,54 @@ export default function HospitalDashboard() {
   }
 
   const statusColor = {
-    CREATED: 'bg-slate-500',
-    SHIPPED: 'bg-blue-500',
-    SORTED: 'bg-yellow-500',
-    DISTRIBUTED: 'bg-orange-500',
-    DELIVERED: 'bg-green-500',
-    VERIFIED: 'bg-emerald-500',
-    FLAGGED: 'bg-red-500',
+    CREATED: "bg-slate-500",
+    SHIPPED: "bg-blue-500",
+    SORTED: "bg-yellow-500",
+    DISTRIBUTED: "bg-orange-500",
+    DELIVERED: "bg-green-500",
+    VERIFIED: "bg-emerald-500",
+    FLAGGED: "bg-red-500",
   };
 
   const flagReasonColor = {
-    'Hospital Flagged': 'bg-red-500/20 text-red-300 border-red-500/30',
-    'Near Expiry': 'bg-orange-500/20 text-orange-300 border-orange-500/30',
-    'Outside Registered Location':
-      'bg-yellow-500/20 text-yellow-300 border-yellow-500/30',
-    'Duplicate Location Update':
-      'bg-purple-500/20 text-purple-300 border-purple-500/30',
-    'Invalid Status Order': 'bg-pink-500/20 text-pink-300 border-pink-500/30',
+    "Hospital Flagged": "bg-red-500/20 text-red-300 border-red-500/30",
+    "Near Expiry": "bg-orange-500/20 text-orange-300 border-orange-500/30",
+    "Outside Registered Location":
+      "bg-yellow-500/20 text-yellow-300 border-yellow-500/30",
+    "Duplicate Location Update":
+      "bg-purple-500/20 text-purple-300 border-purple-500/30",
+    "Invalid Status Order": "bg-pink-500/20 text-pink-300 border-pink-500/30",
   };
 
   const filterOptions = [
-    { key: 'ALL', label: 'All', color: 'bg-white/10 text-slate-300' },
+    { key: "ALL", label: "All", color: "bg-white/10 text-slate-300" },
     {
-      key: 'CREATED',
-      label: 'Created',
-      color: 'bg-slate-500/20 text-slate-300',
+      key: "CREATED",
+      label: "Created",
+      color: "bg-slate-500/20 text-slate-300",
     },
-    { key: 'SHIPPED', label: 'Shipped', color: 'bg-blue-500/20 text-blue-300' },
+    { key: "SHIPPED", label: "Shipped", color: "bg-blue-500/20 text-blue-300" },
     {
-      key: 'SORTED',
-      label: 'Sorted',
-      color: 'bg-yellow-500/20 text-yellow-300',
-    },
-    {
-      key: 'DISTRIBUTED',
-      label: 'Distributed',
-      color: 'bg-orange-500/20 text-orange-300',
+      key: "SORTED",
+      label: "Sorted",
+      color: "bg-yellow-500/20 text-yellow-300",
     },
     {
-      key: 'DELIVERED',
-      label: 'Delivered',
-      color: 'bg-green-500/20 text-green-300',
+      key: "DISTRIBUTED",
+      label: "Distributed",
+      color: "bg-orange-500/20 text-orange-300",
     },
     {
-      key: 'VERIFIED',
-      label: 'Verified',
-      color: 'bg-emerald-500/20 text-emerald-300',
+      key: "DELIVERED",
+      label: "Delivered",
+      color: "bg-green-500/20 text-green-300",
     },
-    { key: 'FLAGGED', label: 'Flagged', color: 'bg-red-500/20 text-red-300' },
+    {
+      key: "VERIFIED",
+      label: "Verified",
+      color: "bg-emerald-500/20 text-emerald-300",
+    },
+    { key: "FLAGGED", label: "Flagged", color: "bg-red-500/20 text-red-300" },
   ];
 
   return (
@@ -481,6 +485,32 @@ export default function HospitalDashboard() {
         />
       )}
 
+      {imageModal && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-900 border border-white/20 rounded-2xl p-4 max-w-2xl w-full">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-medium text-slate-300">
+                {imageModal.label}
+              </span>
+              <button
+                onClick={() => {
+                  URL.revokeObjectURL(imageModal.url);
+                  setImageModal(null);
+                }}
+                className="text-slate-400 hover:text-white text-xl leading-none"
+              >
+                ✕
+              </button>
+            </div>
+            <img
+              src={imageModal.url}
+              alt={imageModal.label}
+              className="w-full rounded-lg"
+            />
+          </div>
+        </div>
+      )}
+
       <header className="border-b border-white/10 bg-white/5">
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -490,9 +520,9 @@ export default function HospitalDashboard() {
             <span className="font-semibold">Hospital Portal</span>
           </div>
           <button
-            onClick={() => {
-              document.cookie = 'auth_token=; max-age=0';
-              window.location.href = '/';
+            onClick={async () => {
+              await fetch("/api/auth/logout", { method: "POST" });
+              window.location.href = "/";
             }}
             className="text-sm text-slate-400 hover:text-white transition-colors"
           >
@@ -505,18 +535,18 @@ export default function HospitalDashboard() {
         {/* Tabs */}
         <div className="flex gap-2 mb-8 flex-wrap">
           {[
-            { key: 'verify', label: 'Verify / Flag Batch' },
-            { key: 'batches', label: '📋 View All Batches' },
-            { key: 'location', label: 'Register Location' },
-            { key: 'register', label: 'Register Manufacturer' },
+            { key: "verify", label: "Search Batch" },
+            { key: "batches", label: "📋 View All Batches" },
+            { key: "location", label: "Register Location" },
+            { key: "register", label: "Register Manufacturer" },
           ].map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 activeTab === tab.key
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-white/10 text-slate-300 hover:bg-white/20'
+                  ? "bg-blue-500 text-white"
+                  : "bg-white/10 text-slate-300 hover:bg-white/20"
               }`}
             >
               {tab.label}
@@ -524,8 +554,8 @@ export default function HospitalDashboard() {
           ))}
         </div>
 
-        {/* ── Verify / Flag Tab ──────────────────────────────────────────────── */}
-        {activeTab === 'verify' && (
+        {/* ── Search Tab ──────────────────────────────────────────────── */}
+        {activeTab === "verify" && (
           <div className="space-y-6">
             <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
               <h2 className="text-lg font-semibold mb-4">
@@ -536,7 +566,7 @@ export default function HospitalDashboard() {
                   type="text"
                   value={batchId}
                   onChange={(e) => setBatchId(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && lookupBatch()}
+                  onKeyDown={(e) => e.key === "Enter" && lookupBatch()}
                   placeholder="Enter Batch ID (0x...)"
                   className="flex-1 bg-white/10 border border-white/20 rounded-lg px-4 py-2.5 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-blue-400"
                 />
@@ -545,21 +575,21 @@ export default function HospitalDashboard() {
                   disabled={batchLoading}
                   className="bg-blue-500 hover:bg-blue-400 disabled:opacity-50 px-6 py-2.5 rounded-lg font-medium transition-colors"
                 >
-                  {batchLoading ? 'Loading…' : 'Search'}
+                  {batchLoading ? "Loading…" : "Search"}
                 </button>
               </div>
             </div>
 
             {actionResult && (
               <div
-                className={`rounded-xl p-4 text-sm ${actionResult.ok ? 'bg-green-500/20 border border-green-500/30 text-green-300' : 'bg-red-500/20 border border-red-500/30 text-red-300'}`}
+                className={`rounded-xl p-4 text-sm ${actionResult.ok ? "bg-green-500/20 border border-green-500/30 text-green-300" : "bg-red-500/20 border border-red-500/30 text-red-300"}`}
               >
                 {actionResult.ok ? (
                   <div>
                     <div>
-                      {actionResult.action === 'verify'
-                        ? '✅ Batch verified on-chain'
-                        : '🚩 Batch flagged on-chain'}
+                      {actionResult.action === "verify"
+                        ? "✅ Batch verified on-chain"
+                        : "🚩 Batch flagged on-chain"}
                     </div>
                     {actionResult.flagReason && (
                       <div className="text-xs mt-1 opacity-80">
@@ -580,13 +610,13 @@ export default function HospitalDashboard() {
               <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-6">
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   {[
-                    ['Batch ID', batchData.batchId?.slice(0, 18) + '…'],
-                    ['Medicine', batchData.medicineName],
-                    ['Medicine ID', batchData.medicineId],
-                    ['Hospital', batchData.hospitalId],
-                    ['Manufacturer', batchData.manufacturerId],
+                    ["Batch ID", batchData.batchId?.slice(0, 18) + "…"],
+                    ["Medicine", batchData.medicineName],
+                    ["Medicine ID", batchData.medicineId],
+                    ["Hospital", batchData.hospitalId],
+                    ["Manufacturer", batchData.manufacturerId],
                     [
-                      'Expiry',
+                      "Expiry",
                       new Date(batchData.expiryDate).toLocaleDateString(),
                     ],
                   ].map(([k, v]) => (
@@ -602,18 +632,18 @@ export default function HospitalDashboard() {
                     Current Status:
                   </span>
                   <span
-                    className={`${statusColor[batchData.currentStatus] || 'bg-slate-600'} text-white text-xs font-bold px-3 py-1 rounded-full`}
+                    className={`${statusColor[batchData.currentStatus] || "bg-slate-600"} text-white text-xs font-bold px-3 py-1 rounded-full`}
                   >
                     {batchData.currentStatus}
                   </span>
-                  {batchData.currentFlagReason !== 'NONE' && (
+                  {batchData.currentFlagReason !== "NONE" && (
                     <span className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded-full">
-                      {batchData.currentFlagReason.replace(/_/g, ' ')}
+                      {batchData.currentFlagReason.replace(/_/g, " ")}
                     </span>
                   )}
                 </div>
 
-                {batchData.currentStatus === 'DELIVERED' && (
+                {batchData.currentStatus === "DELIVERED" && (
                   <div className="flex gap-3">
                     <button
                       onClick={submitVerify}
@@ -640,20 +670,20 @@ export default function HospitalDashboard() {
                     {batchData.history?.map((h, i) => (
                       <div key={i} className="flex items-start gap-3 text-sm">
                         <span
-                          className={`${statusColor[h.status] || 'bg-slate-600'} text-white text-xs px-2 py-0.5 rounded-full mt-0.5 shrink-0`}
+                          className={`${statusColor[h.status] || "bg-slate-600"} text-white text-xs px-2 py-0.5 rounded-full mt-0.5 shrink-0`}
                         >
                           {h.status}
                         </span>
                         <div className="text-slate-300">
                           <span>{new Date(h.timestamp).toLocaleString()}</span>
-                          {h.locationId && h.locationId !== 'none' && (
+                          {h.locationId && h.locationId !== "none" && (
                             <span className="text-slate-500 ml-2">
                               @ {h.locationId.slice(0, 12)}…
                             </span>
                           )}
-                          {h.flagReason !== 'NONE' && (
+                          {h.flagReason !== "NONE" && (
                             <span className="text-red-400 ml-2">
-                              ⚠ {h.flagReason.replace(/_/g, ' ')}
+                              ⚠ {h.flagReason.replace(/_/g, " ")}
                             </span>
                           )}
                         </div>
@@ -669,17 +699,35 @@ export default function HospitalDashboard() {
                     </h3>
                     <div className="flex flex-wrap gap-3">
                       {batchData.images.map((img, i) => (
-                        <a
+                        <button
                           key={i}
-                          href={`/api/images/${img.id}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                          onClick={async () => {
+                            setImageError(null);
+                            const res = await fetch(`/api/images/${img.id}`);
+                            if (!res.ok) {
+                              const data = await res.json();
+                              setImageError(
+                                data.error || "Failed to load image",
+                              );
+                            } else {
+                              const blob = await res.blob();
+                              setImageModal({
+                                url: URL.createObjectURL(blob),
+                                label: `Image #${i + 1} (step ${img.status_step})`,
+                              });
+                            }
+                          }}
                           className="bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-xs text-blue-300 hover:text-blue-200 transition-colors"
                         >
                           Image #{i + 1} (step {img.status_step})
-                        </a>
+                        </button>
                       ))}
                     </div>
+                    {imageError && (
+                      <div className="mt-3 bg-red-500/20 border border-red-500/30 text-red-300 text-sm rounded-lg p-3">
+                        ⚠️ {imageError}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -688,7 +736,7 @@ export default function HospitalDashboard() {
         )}
 
         {/* ── View All Batches Tab ───────────────────────────────────────────── */}
-        {activeTab === 'batches' && (
+        {activeTab === "batches" && (
           <div className="space-y-4">
             {/* Header row */}
             <div className="flex items-center justify-between flex-wrap gap-3">
@@ -704,7 +752,7 @@ export default function HospitalDashboard() {
                 disabled={batchesLoading}
                 className="bg-white/10 hover:bg-white/20 disabled:opacity-50 px-4 py-2 rounded-lg text-sm transition-colors"
               >
-                {batchesLoading ? 'Loading…' : '↻ Refresh'}
+                {batchesLoading ? "Loading…" : "↻ Refresh"}
               </button>
             </div>
 
@@ -717,15 +765,15 @@ export default function HospitalDashboard() {
                   className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
                     statusFilter === key
                       ? `${color} border-current opacity-100`
-                      : 'bg-white/5 text-slate-400 border-white/10 hover:bg-white/10'
+                      : "bg-white/5 text-slate-400 border-white/10 hover:bg-white/10"
                   }`}
                 >
                   {label}
-                  {key !== 'ALL' && counts[key] ? (
+                  {key !== "ALL" && counts[key] ? (
                     <span className="ml-1.5 bg-white/20 px-1.5 py-0.5 rounded-full">
                       {counts[key]}
                     </span>
-                  ) : key === 'ALL' ? (
+                  ) : key === "ALL" ? (
                     <span className="ml-1.5 bg-white/20 px-1.5 py-0.5 rounded-full">
                       {allBatches.length}
                     </span>
@@ -746,14 +794,14 @@ export default function HospitalDashboard() {
               <div className="bg-white/5 border border-white/10 rounded-2xl p-12 text-center">
                 <div className="text-4xl mb-3">📭</div>
                 <div className="text-slate-300 font-medium">
-                  {statusFilter === 'ALL'
-                    ? 'No batches yet'
+                  {statusFilter === "ALL"
+                    ? "No batches yet"
                     : `No ${statusFilter.toLowerCase()} batches`}
                 </div>
                 <div className="text-slate-500 text-sm mt-1">
-                  {statusFilter !== 'ALL' && (
+                  {statusFilter !== "ALL" && (
                     <button
-                      onClick={() => setStatusFilter('ALL')}
+                      onClick={() => setStatusFilter("ALL")}
                       className="text-blue-400 hover:text-blue-300 transition-colors"
                     >
                       Show all batches
@@ -770,11 +818,11 @@ export default function HospitalDashboard() {
                   <div
                     key={batch.batchId}
                     className={`bg-white/5 rounded-2xl p-5 border ${
-                      batch.status === 'FLAGGED'
-                        ? 'border-red-500/20'
-                        : batch.status === 'VERIFIED'
-                          ? 'border-emerald-500/20'
-                          : 'border-white/10'
+                      batch.status === "FLAGGED"
+                        ? "border-red-500/20"
+                        : batch.status === "VERIFIED"
+                          ? "border-emerald-500/20"
+                          : "border-white/10"
                     }`}
                   >
                     <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -789,7 +837,7 @@ export default function HospitalDashboard() {
                           </span>
                           {batch.flagReason && (
                             <span
-                              className={`text-xs font-medium px-2.5 py-0.5 rounded-full border ${flagReasonColor[batch.flagReason] || 'bg-slate-500/20 text-slate-300 border-slate-500/30'}`}
+                              className={`text-xs font-medium px-2.5 py-0.5 rounded-full border ${flagReasonColor[batch.flagReason] || "bg-slate-500/20 text-slate-300 border-slate-500/30"}`}
                             >
                               {batch.flagReason}
                             </span>
@@ -826,26 +874,26 @@ export default function HospitalDashboard() {
                       {/* Right: metadata */}
                       <div className="text-right text-xs text-slate-400 space-y-1 shrink-0">
                         <div>
-                          Manufacturer:{' '}
+                          Manufacturer:{" "}
                           <span className="text-white">
                             {batch.manufacturerId}
                           </span>
                         </div>
                         <div>
-                          Expiry:{' '}
+                          Expiry:{" "}
                           <span className="text-white">
                             {new Date(batch.expiryDate).toLocaleDateString()}
                           </span>
                         </div>
                         <div>
-                          Created:{' '}
+                          Created:{" "}
                           <span className="text-white">
                             {new Date(batch.createdAt).toLocaleDateString()}
                           </span>
                         </div>
                         {batch.flaggedAt && (
                           <div>
-                            Flagged:{' '}
+                            Flagged:{" "}
                             <span className="text-red-300">
                               {new Date(batch.flaggedAt).toLocaleString()}
                             </span>
@@ -859,7 +907,7 @@ export default function HospitalDashboard() {
                       <button
                         onClick={() => {
                           setBatchId(batch.batchId);
-                          setActiveTab('verify');
+                          setActiveTab("verify");
                           setTimeout(lookupBatch, 100);
                         }}
                         className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
@@ -875,7 +923,7 @@ export default function HospitalDashboard() {
         )}
 
         {/* ── Register Location ─────────────────────────────────────────────── */}
-        {activeTab === 'location' && (
+        {activeTab === "location" && (
           <div className="bg-white/5 border border-white/10 rounded-2xl p-6 max-w-2xl">
             <h2 className="text-lg font-semibold mb-2">
               Register Verified Location
@@ -886,13 +934,13 @@ export default function HospitalDashboard() {
             </p>
             {locResult && (
               <div
-                className={`rounded-xl p-4 text-sm mb-4 ${locResult.ok ? 'bg-green-500/20 border border-green-500/30 text-green-300' : 'bg-red-500/20 border border-red-500/30 text-red-300'}`}
+                className={`rounded-xl p-4 text-sm mb-4 ${locResult.ok ? "bg-green-500/20 border border-green-500/30 text-green-300" : "bg-red-500/20 border border-red-500/30 text-red-300"}`}
               >
                 {locResult.ok ? (
                   <div>
                     <div>✅ Location registered on-chain</div>
                     <div className="text-xs mt-1">
-                      ID:{' '}
+                      ID:{" "}
                       <span className="font-mono">{locResult.locationId}</span>
                     </div>
                     <div className="font-mono text-xs mt-1 break-all opacity-60">
@@ -952,16 +1000,16 @@ export default function HospitalDashboard() {
                 className="w-full bg-violet-500 hover:bg-violet-400 disabled:opacity-50 text-white font-medium rounded-lg py-2.5 transition-colors"
               >
                 {locLoading
-                  ? 'Registering on-chain…'
+                  ? "Registering on-chain…"
                   : !locForm.latitude
-                    ? '📍 Pin a location on the map first'
-                    : 'Register Location'}
+                    ? "📍 Pin a location on the map first"
+                    : "Register Location"}
               </button>
             </form>
           </div>
         )}
         {/* ── Register Manufacturer Tab ──────────────────────────────────────── */}
-        {activeTab === 'register' && (
+        {activeTab === "register" && (
           <div className="bg-white/5 border border-white/10 rounded-2xl p-6 max-w-md">
             <h2 className="text-lg font-semibold mb-4">
               Register New Manufacturer
@@ -972,7 +1020,7 @@ export default function HospitalDashboard() {
 
             {regResult && (
               <div
-                className={`rounded-xl p-4 text-sm mb-4 ${regResult.ok ? 'bg-green-500/20 border border-green-500/30 text-green-300' : 'bg-red-500/20 border border-red-500/30 text-red-300'}`}
+                className={`rounded-xl p-4 text-sm mb-4 ${regResult.ok ? "bg-green-500/20 border border-green-500/30 text-green-300" : "bg-red-500/20 border border-red-500/30 text-red-300"}`}
               >
                 {regResult.ok
                   ? `✅ Manufacturer registered — tx: ${regResult.txHash?.slice(0, 20)}…`
@@ -1017,7 +1065,7 @@ export default function HospitalDashboard() {
                 disabled={regLoading}
                 className="w-full bg-blue-500 hover:bg-blue-400 disabled:opacity-50 text-white font-medium rounded-lg py-2.5 transition-colors"
               >
-                {regLoading ? 'Registering on-chain…' : 'Register Manufacturer'}
+                {regLoading ? "Registering on-chain…" : "Register Manufacturer"}
               </button>
             </form>
           </div>

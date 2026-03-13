@@ -1,19 +1,22 @@
 // frontend/lib/auth.js
 // Server-side JWT verification helper
 
-import { jwtVerify } from 'jose';
-import { NextResponse } from 'next/server';
+import { jwtVerify } from "jose";
+import { NextResponse } from "next/server";
 
 const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'blockchain-development-assignment',
+  process.env.JWT_SECRET ??
+    (() => {
+      throw new Error("JWT_SECRET is not set");
+    })(),
 );
 
 /**
  * Verify JWT from cookie. Returns payload or throws.
  */
 export async function verifyToken(request) {
-  const token = request.cookies.get('auth_token')?.value;
-  if (!token) throw new Error('Not authenticated');
+  const token = request.cookies.get("auth_token")?.value;
+  if (!token) throw new Error("Not authenticated");
   const { payload } = await jwtVerify(token, JWT_SECRET);
   return payload;
 }
@@ -27,12 +30,12 @@ export function withAuth(handler, requiredRole = null) {
     try {
       const payload = await verifyToken(request);
       if (requiredRole && payload.role !== requiredRole) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
       request.user = payload;
       return handler(request, context);
     } catch {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
   };
 }

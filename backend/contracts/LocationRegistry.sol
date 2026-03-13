@@ -8,7 +8,7 @@ pragma solidity ^0.8.20;
  *      This allows verification that off-chain data hasn't been tampered with.
  */
 contract LocationRegistry {
-    enum LocationType { FACTORY, DISTRIBUTION_CENTER, SORTING_CENTER }
+    enum LocationType { FACTORY, DISTRIBUTION_CENTER, SORTING_CENTER, HOSPITAL }
 
     struct Location {
         string locationId;

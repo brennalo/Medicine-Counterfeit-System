@@ -1,25 +1,25 @@
-'use client';
-import { useState, useRef, useEffect, useCallback } from 'react';
+"use client";
+import { useState, useRef, useEffect, useCallback } from "react";
 
 const STATUS_LABELS = [
-  'CREATED',
-  'SHIPPED',
-  'SORTED',
-  'DISTRIBUTED',
-  'DELIVERED',
-  'VERIFIED',
-  'FLAGGED',
+  "CREATED",
+  "SHIPPED",
+  "SORTED",
+  "DISTRIBUTED",
+  "DELIVERED",
+  "VERIFIED",
+  "FLAGGED",
 ];
 const NEXT_STATUS = { CREATED: 1, SHIPPED: 2, SORTED: 3, DISTRIBUTED: 4 };
 
 const statusColor = {
-  CREATED: 'bg-slate-500',
-  SHIPPED: 'bg-blue-500',
-  SORTED: 'bg-yellow-500',
-  DISTRIBUTED: 'bg-indigo-500',
-  DELIVERED: 'bg-green-500',
-  VERIFIED: 'bg-emerald-500',
-  FLAGGED: 'bg-red-500',
+  CREATED: "bg-slate-500",
+  SHIPPED: "bg-blue-500",
+  SORTED: "bg-yellow-500",
+  DISTRIBUTED: "bg-indigo-500",
+  DELIVERED: "bg-green-500",
+  VERIFIED: "bg-emerald-500",
+  FLAGGED: "bg-red-500",
 };
 
 // ── Leaflet map picker ────────────────────────────────────────────────────────
@@ -27,7 +27,7 @@ function MapPicker({ onLocationSelect, selectedCoords }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markerRef = useRef(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
 
@@ -51,10 +51,10 @@ function MapPicker({ onLocationSelect, selectedCoords }) {
 
     // Strip lot/unit prefixes and clean up the query for Nominatim
     const cleaned = searchQuery
-      .replace(/^(lot|no|unit|blok|block)[\s\d,.-]*/gi, '') // remove "Lot 8," etc
-      .replace(/\b\d{5}\b/g, '') // remove postcodes
-      .replace(/wilayah persekutuan/gi, '') // remove verbose admin terms
-      .replace(/,\s*,/g, ',') // clean double commas
+      .replace(/^(lot|no|unit|blok|block)[\s\d,.-]*/gi, "") // remove "Lot 8," etc
+      .replace(/\b\d{5}\b/g, "") // remove postcodes
+      .replace(/wilayah persekutuan/gi, "") // remove verbose admin terms
+      .replace(/,\s*,/g, ",") // clean double commas
       .trim();
 
     const queries = [searchQuery, cleaned].filter(Boolean);
@@ -76,8 +76,8 @@ function MapPicker({ onLocationSelect, selectedCoords }) {
       if (results.length === 0) {
         setSearchResults([
           {
-            place_id: 'none',
-            display_name: 'No results found — try a landmark or area name',
+            place_id: "none",
+            display_name: "No results found — try a landmark or area name",
             disabled: true,
           },
         ]);
@@ -87,7 +87,7 @@ function MapPicker({ onLocationSelect, selectedCoords }) {
     } catch (err) {
       setSearchResults([
         {
-          place_id: 'error',
+          place_id: "error",
           display_name: `Search failed: ${err.message}`,
           disabled: true,
         },
@@ -109,16 +109,16 @@ function MapPicker({ onLocationSelect, selectedCoords }) {
   useEffect(() => {
     if (mapInstanceRef.current) return;
 
-    if (!document.querySelector('#leaflet-css')) {
-      const link = document.createElement('link');
-      link.id = 'leaflet-css';
-      link.rel = 'stylesheet';
-      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+    if (!document.querySelector("#leaflet-css")) {
+      const link = document.createElement("link");
+      link.id = "leaflet-css";
+      link.rel = "stylesheet";
+      link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
       document.head.appendChild(link);
     }
 
-    const script = document.createElement('script');
-    script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+    const script = document.createElement("script");
+    script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
     script.onload = () => {
       const L = window.L;
 
@@ -126,11 +126,11 @@ function MapPicker({ onLocationSelect, selectedCoords }) {
         mapRef.current._leaflet_id = null;
       }
       const map = L.map(mapRef.current).setView([3.139, 101.6869], 12);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors',
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "© OpenStreetMap contributors",
       }).addTo(map);
 
-      map.on('click', (e) => {
+      map.on("click", (e) => {
         const { lat, lng } = e.latlng;
         fetch(
           `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
@@ -171,7 +171,7 @@ function MapPicker({ onLocationSelect, selectedCoords }) {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && searchLocation()}
+            onKeyDown={(e) => e.key === "Enter" && searchLocation()}
             placeholder="Search for road addresses or area names..."
             className="flex-1 bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-white placeholder-white/30 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
           />
@@ -181,7 +181,7 @@ function MapPicker({ onLocationSelect, selectedCoords }) {
             disabled={searching}
             className="bg-violet-600 hover:bg-violet-500 disabled:opacity-50 px-4 py-2 rounded-lg text-sm text-white transition-colors"
           >
-            {searching ? '…' : 'Search'}
+            {searching ? "…" : "Search"}
           </button>
         </div>
 
@@ -206,14 +206,14 @@ function MapPicker({ onLocationSelect, selectedCoords }) {
       {/* Map */}
       <div
         ref={mapRef}
-        style={{ height: '300px', borderRadius: '12px', zIndex: 0 }}
+        style={{ height: "300px", borderRadius: "12px", zIndex: 0 }}
       />
       <p className="text-xs text-slate-400">
         📍 Search for a location above, or click anywhere on the map to pin it
       </p>
       {selectedCoords && (
         <div className="bg-white/5 rounded-lg px-3 py-2 text-xs text-green-400">
-          Selected: {selectedCoords.lat.toFixed(6)},{' '}
+          Selected: {selectedCoords.lat.toFixed(6)},{" "}
           {selectedCoords.lng.toFixed(6)}
         </div>
       )}
@@ -223,28 +223,28 @@ function MapPicker({ onLocationSelect, selectedCoords }) {
 
 // ── Main Dashboard ────────────────────────────────────────────────────────────
 export default function ManufacturerDashboard() {
-  const [activeTab, setActiveTab] = useState('mybatches');
+  const [activeTab, setActiveTab] = useState("mybatches");
 
   // ── My Batches list + filter ──────────────────────────────────────────────
   const [myBatches, setMyBatches] = useState([]);
   const [batchesLoading, setBatchesLoading] = useState(false);
-  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [statusFilter, setStatusFilter] = useState("ALL");
 
   // ── Create Batch ──────────────────────────────────────────────────────────
   const [batchForm, setBatchForm] = useState({
-    medicineId: '',
-    medicineName: '',
-    hospitalId: '',
-    expiryDate: '',
+    medicineId: "",
+    medicineName: "",
+    hospitalId: "",
+    expiryDate: "",
   });
   const [batchResult, setBatchResult] = useState(null);
   const [batchLoading, setBatchLoading] = useState(false);
 
   // ── Register Location ─────────────────────────────────────────────────────
   const [locForm, setLocForm] = useState({
-    name: '',
-    locationType: 'FACTORY',
-    address: '',
+    name: "",
+    locationType: "FACTORY",
+    address: "",
     latitude: null,
     longitude: null,
   });
@@ -252,7 +252,7 @@ export default function ManufacturerDashboard() {
   const [locLoading, setLocLoading] = useState(false);
 
   // ── Update Batch ──────────────────────────────────────────────────────────
-  const [updateBatchId, setUpdateBatchId] = useState('');
+  const [updateBatchId, setUpdateBatchId] = useState("");
   const [batchInfo, setBatchInfo] = useState(null);
   const [updateLoading, setUpdateLoading] = useState(false);
   const [updateResult, setUpdateResult] = useState(null);
@@ -264,13 +264,13 @@ export default function ManufacturerDashboard() {
 
   // Load batches when tab opens
   useEffect(() => {
-    if (activeTab === 'mybatches') loadMyBatches();
+    if (activeTab === "mybatches") loadMyBatches();
   }, [activeTab]);
 
   async function loadMyBatches() {
     setBatchesLoading(true);
     try {
-      const res = await fetch('/api/manufacturer/my-batches');
+      const res = await fetch("/api/manufacturer/my-batches");
       const data = await res.json();
       if (res.ok) setMyBatches(data.batches);
     } finally {
@@ -280,7 +280,7 @@ export default function ManufacturerDashboard() {
 
   // Filter batches
   const filteredBatches =
-    statusFilter === 'ALL'
+    statusFilter === "ALL"
       ? myBatches
       : myBatches.filter((b) => b.status === statusFilter);
 
@@ -293,14 +293,14 @@ export default function ManufacturerDashboard() {
   // Navigate from batch card to update tab
   function openBatchForUpdate(batchId) {
     setUpdateBatchId(batchId);
-    setActiveTab('update');
+    setActiveTab("update");
     setBatchInfo(null);
     setUpdateResult(null);
   }
 
   // Auto-lookup when switching to update tab with a pre-filled batchId
   useEffect(() => {
-    if (activeTab === 'update' && updateBatchId) {
+    if (activeTab === "update" && updateBatchId) {
       lookupBatchForUpdate(updateBatchId);
     }
   }, [activeTab]);
@@ -310,19 +310,19 @@ export default function ManufacturerDashboard() {
     setBatchLoading(true);
     setBatchResult(null);
     try {
-      const res = await fetch('/api/manufacturer/create-batch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/manufacturer/create-batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(batchForm),
       });
       const data = await res.json();
       setBatchResult({ ok: res.ok, ...data });
       if (res.ok) {
         setBatchForm({
-          medicineId: '',
-          medicineName: '',
-          hospitalId: '',
-          expiryDate: '',
+          medicineId: "",
+          medicineName: "",
+          hospitalId: "",
+          expiryDate: "",
         });
         loadMyBatches(); // refresh list
       }
@@ -334,15 +334,15 @@ export default function ManufacturerDashboard() {
   async function registerLocation(e) {
     e.preventDefault();
     if (!locForm.latitude || !locForm.longitude) {
-      alert('Please pin a location on the map first');
+      alert("Please pin a location on the map first");
       return;
     }
     setLocLoading(true);
     setLocResult(null);
     try {
-      const res = await fetch('/api/manufacturer/register-location', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/manufacturer/register-location", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: locForm.name,
           locationType: locForm.locationType,
@@ -355,9 +355,9 @@ export default function ManufacturerDashboard() {
       setLocResult({ ok: res.ok, ...data });
       if (res.ok)
         setLocForm({
-          name: '',
-          locationType: 'FACTORY',
-          address: '',
+          name: "",
+          locationType: "FACTORY",
+          address: "",
           latitude: null,
           longitude: null,
         });
@@ -384,11 +384,11 @@ export default function ManufacturerDashboard() {
     if (!batchInfo) return;
     const nextStatusCode = NEXT_STATUS[batchInfo.currentStatus];
     if (!imageRef.current?.files[0]) {
-      alert('Please attach an image proof before updating');
+      alert("Please attach an image proof before updating");
       return;
     }
     if (!nextStatusCode) {
-      alert('No further status update possible');
+      alert("No further status update possible");
       return;
     }
 
@@ -405,17 +405,17 @@ export default function ManufacturerDashboard() {
     });
 
     const fd = new FormData();
-    fd.append('batchId', updateBatchId.trim());
-    fd.append('newStatus', nextStatusCode);
-    fd.append('currentLat', coords?.lat ?? 0);
-    fd.append('currentLng', coords?.lng ?? 0);
-    fd.append('geoAvailable', coords ? 'true' : 'false');
+    fd.append("batchId", updateBatchId.trim());
+    fd.append("newStatus", nextStatusCode);
+    fd.append("currentLat", coords?.lat ?? 0);
+    fd.append("currentLng", coords?.lng ?? 0);
+    fd.append("geoAvailable", coords ? "true" : "false");
     if (imageRef.current?.files[0])
-      fd.append('imageProof', imageRef.current.files[0]);
+      fd.append("imageProof", imageRef.current.files[0]);
 
     try {
-      const res = await fetch('/api/manufacturer/update-batch', {
-        method: 'POST',
+      const res = await fetch("/api/manufacturer/update-batch", {
+        method: "POST",
         body: fd,
       });
       const data = await res.json();
@@ -430,14 +430,14 @@ export default function ManufacturerDashboard() {
   }
 
   const filterOptions = [
-    { key: 'ALL', label: 'All' },
-    { key: 'CREATED', label: 'Created' },
-    { key: 'SHIPPED', label: 'Shipped' },
-    { key: 'SORTED', label: 'Sorted' },
-    { key: 'DISTRIBUTED', label: 'Distributed' },
-    { key: 'DELIVERED', label: 'Delivered' },
-    { key: 'VERIFIED', label: 'Verified' },
-    { key: 'FLAGGED', label: 'Flagged' },
+    { key: "ALL", label: "All" },
+    { key: "CREATED", label: "Created" },
+    { key: "SHIPPED", label: "Shipped" },
+    { key: "SORTED", label: "Sorted" },
+    { key: "DISTRIBUTED", label: "Distributed" },
+    { key: "DELIVERED", label: "Delivered" },
+    { key: "VERIFIED", label: "Verified" },
+    { key: "FLAGGED", label: "Flagged" },
   ];
 
   return (
@@ -451,9 +451,9 @@ export default function ManufacturerDashboard() {
             <span className="font-semibold">Manufacturer Portal</span>
           </div>
           <button
-            onClick={() => {
-              document.cookie = 'auth_token=; max-age=0';
-              window.location.href = '/';
+            onClick={async () => {
+              await fetch("/api/auth/logout", { method: "POST" });
+              window.location.href = "/";
             }}
             className="text-sm text-slate-400 hover:text-white transition-colors"
           >
@@ -466,18 +466,18 @@ export default function ManufacturerDashboard() {
         {/* Tabs */}
         <div className="flex gap-2 mb-8 flex-wrap">
           {[
-            { key: 'mybatches', label: '📋 My Batches' },
-            { key: 'create', label: 'Create Batch' },
-            { key: 'locations', label: 'Register Location' },
-            { key: 'update', label: 'Update Batch Status' },
+            { key: "mybatches", label: "📋 My Batches" },
+            { key: "create", label: "Create Batch" },
+            { key: "locations", label: "Register Location" },
+            { key: "update", label: "Update Batch Status" },
           ].map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 activeTab === tab.key
-                  ? 'bg-violet-500 text-white'
-                  : 'bg-white/10 text-slate-300 hover:bg-white/20'
+                  ? "bg-violet-500 text-white"
+                  : "bg-white/10 text-slate-300 hover:bg-white/20"
               }`}
             >
               {tab.label}
@@ -486,7 +486,7 @@ export default function ManufacturerDashboard() {
         </div>
 
         {/* ── My Batches Tab ─────────────────────────────────────────────────── */}
-        {activeTab === 'mybatches' && (
+        {activeTab === "mybatches" && (
           <div className="space-y-4">
             <div className="flex items-center justify-between flex-wrap gap-3">
               <div>
@@ -500,7 +500,7 @@ export default function ManufacturerDashboard() {
                 disabled={batchesLoading}
                 className="bg-white/10 hover:bg-white/20 disabled:opacity-50 px-4 py-2 rounded-lg text-sm transition-colors"
               >
-                {batchesLoading ? 'Loading…' : '↻ Refresh'}
+                {batchesLoading ? "Loading…" : "↻ Refresh"}
               </button>
             </div>
 
@@ -512,13 +512,13 @@ export default function ManufacturerDashboard() {
                   onClick={() => setStatusFilter(key)}
                   className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
                     statusFilter === key
-                      ? 'bg-violet-500/20 text-violet-300 border-violet-500/30'
-                      : 'bg-white/5 text-slate-400 border-white/10 hover:bg-white/10'
+                      ? "bg-violet-500/20 text-violet-300 border-violet-500/30"
+                      : "bg-white/5 text-slate-400 border-white/10 hover:bg-white/10"
                   }`}
                 >
                   {label}
                   <span className="ml-1.5 bg-white/20 px-1.5 py-0.5 rounded-full">
-                    {key === 'ALL' ? myBatches.length : counts[key] || 0}
+                    {key === "ALL" ? myBatches.length : counts[key] || 0}
                   </span>
                 </button>
               ))}
@@ -534,13 +534,13 @@ export default function ManufacturerDashboard() {
               <div className="bg-white/5 border border-white/10 rounded-2xl p-12 text-center">
                 <div className="text-4xl mb-3">📭</div>
                 <div className="text-slate-300 font-medium">
-                  {statusFilter === 'ALL'
-                    ? 'No batches yet'
+                  {statusFilter === "ALL"
+                    ? "No batches yet"
                     : `No ${statusFilter.toLowerCase()} batches`}
                 </div>
-                {statusFilter !== 'ALL' && (
+                {statusFilter !== "ALL" && (
                   <button
-                    onClick={() => setStatusFilter('ALL')}
+                    onClick={() => setStatusFilter("ALL")}
                     className="text-violet-400 hover:text-violet-300 text-sm mt-2 transition-colors"
                   >
                     Show all batches
@@ -555,13 +555,13 @@ export default function ManufacturerDashboard() {
                   <div
                     key={batch.batchId}
                     className={`bg-white/5 rounded-2xl p-5 border transition-colors ${
-                      batch.status === 'FLAGGED'
-                        ? 'border-red-500/20'
-                        : batch.status === 'VERIFIED'
-                          ? 'border-emerald-500/20'
-                          : batch.status === 'DELIVERED'
-                            ? 'border-green-500/20'
-                            : 'border-white/10'
+                      batch.status === "FLAGGED"
+                        ? "border-red-500/20"
+                        : batch.status === "VERIFIED"
+                          ? "border-emerald-500/20"
+                          : batch.status === "DELIVERED"
+                            ? "border-green-500/20"
+                            : "border-white/10"
                     }`}
                   >
                     <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -580,7 +580,7 @@ export default function ManufacturerDashboard() {
                           )}
                           {NEXT_STATUS[batch.status] && (
                             <span className="text-xs text-violet-400 bg-violet-500/10 border border-violet-500/20 px-2 py-0.5 rounded-full">
-                              → {STATUS_LABELS[NEXT_STATUS[batch.status]]}{' '}
+                              → {STATUS_LABELS[NEXT_STATUS[batch.status]]}{" "}
                               pending
                             </span>
                           )}
@@ -606,13 +606,13 @@ export default function ManufacturerDashboard() {
                       {/* Right: metadata */}
                       <div className="text-right text-xs text-slate-400 space-y-1 shrink-0">
                         <div>
-                          Expiry:{' '}
+                          Expiry:{" "}
                           <span className="text-white">
                             {new Date(batch.expiryDate).toLocaleDateString()}
                           </span>
                         </div>
                         <div>
-                          Created:{' '}
+                          Created:{" "}
                           <span className="text-white">
                             {new Date(batch.createdAt).toLocaleDateString()}
                           </span>
@@ -631,9 +631,9 @@ export default function ManufacturerDashboard() {
                         </button>
                       ) : (
                         <span className="text-xs text-slate-500">
-                          {batch.status === 'DELIVERED'
-                            ? '⏳ Awaiting hospital action'
-                            : '✅ Complete'}
+                          {batch.status === "DELIVERED"
+                            ? "⏳ Awaiting hospital action"
+                            : "✅ Complete"}
                         </span>
                       )}
                     </div>
@@ -645,7 +645,7 @@ export default function ManufacturerDashboard() {
         )}
 
         {/* ── Create Batch Tab ───────────────────────────────────────────────── */}
-        {activeTab === 'create' && (
+        {activeTab === "create" && (
           <div className="bg-white/5 border border-white/10 rounded-2xl p-6 max-w-lg">
             <h2 className="text-lg font-semibold mb-2">
               Create New Medicine Batch
@@ -656,7 +656,7 @@ export default function ManufacturerDashboard() {
 
             {batchResult && (
               <div
-                className={`rounded-xl p-4 text-sm mb-4 ${batchResult.ok ? 'bg-green-500/20 border border-green-500/30 text-green-300' : 'bg-red-500/20 border border-red-500/30 text-red-300'}`}
+                className={`rounded-xl p-4 text-sm mb-4 ${batchResult.ok ? "bg-green-500/20 border border-green-500/30 text-green-300" : "bg-red-500/20 border border-red-500/30 text-red-300"}`}
               >
                 {batchResult.ok ? (
                   <div>
@@ -676,9 +676,9 @@ export default function ManufacturerDashboard() {
 
             <form onSubmit={createBatch} className="space-y-4">
               {[
-                ['Medicine ID', 'medicineId', 'e.g. MED-12345'],
-                ['Medicine Name', 'medicineName', 'e.g. Paracetamol 500mg'],
-                ['Hospital ID', 'hospitalId', 'Destination hospital user ID'],
+                ["Medicine ID", "medicineId", "e.g. MED-12345"],
+                ["Medicine Name", "medicineName", "e.g. Paracetamol 500mg"],
+                ["Hospital ID", "hospitalId", "Destination hospital user ID"],
               ].map(([label, key, ph]) => (
                 <div key={key}>
                   <label className="block text-sm text-slate-300 mb-1">
@@ -715,14 +715,14 @@ export default function ManufacturerDashboard() {
                 disabled={batchLoading}
                 className="w-full bg-violet-500 hover:bg-violet-400 disabled:opacity-50 text-white font-medium rounded-lg py-2.5 transition-colors"
               >
-                {batchLoading ? 'Creating on-chain…' : 'Create Batch'}
+                {batchLoading ? "Creating on-chain…" : "Create Batch"}
               </button>
             </form>
           </div>
         )}
 
         {/* ── Register Location ─────────────────────────────────────────────── */}
-        {activeTab === 'locations' && (
+        {activeTab === "locations" && (
           <div className="bg-white/5 border border-white/10 rounded-2xl p-6 max-w-2xl">
             <h2 className="text-lg font-semibold mb-2">
               Register Verified Location
@@ -733,13 +733,13 @@ export default function ManufacturerDashboard() {
             </p>
             {locResult && (
               <div
-                className={`rounded-xl p-4 text-sm mb-4 ${locResult.ok ? 'bg-green-500/20 border border-green-500/30 text-green-300' : 'bg-red-500/20 border border-red-500/30 text-red-300'}`}
+                className={`rounded-xl p-4 text-sm mb-4 ${locResult.ok ? "bg-green-500/20 border border-green-500/30 text-green-300" : "bg-red-500/20 border border-red-500/30 text-red-300"}`}
               >
                 {locResult.ok ? (
                   <div>
                     <div>✅ Location registered on-chain</div>
                     <div className="text-xs mt-1">
-                      ID:{' '}
+                      ID:{" "}
                       <span className="font-mono">{locResult.locationId}</span>
                     </div>
                     <div className="font-mono text-xs mt-1 break-all opacity-60">
@@ -819,21 +819,21 @@ export default function ManufacturerDashboard() {
                 className="w-full bg-violet-500 hover:bg-violet-400 disabled:opacity-50 text-white font-medium rounded-lg py-2.5 transition-colors"
               >
                 {locLoading
-                  ? 'Registering on-chain…'
+                  ? "Registering on-chain…"
                   : !locForm.latitude
-                    ? '📍 Pin a location on the map first'
-                    : 'Register Location'}
+                    ? "📍 Pin a location on the map first"
+                    : "Register Location"}
               </button>
             </form>
           </div>
         )}
         {/* ── Update Batch Status Tab ────────────────────────────────────────── */}
-        {activeTab === 'update' && (
+        {activeTab === "update" && (
           <div className="max-w-lg">
             <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-4">
               <div className="flex items-center gap-3">
                 <button
-                  onClick={() => setActiveTab('mybatches')}
+                  onClick={() => setActiveTab("mybatches")}
                   className="text-slate-400 hover:text-white text-sm transition-colors"
                 >
                   ← Back to My Batches
@@ -919,7 +919,7 @@ export default function ManufacturerDashboard() {
                       Current Status
                     </span>
                     <span
-                      className={`${statusColor[batchInfo.currentStatus] || 'bg-slate-600'} text-white text-xs font-bold px-3 py-1 rounded-full`}
+                      className={`${statusColor[batchInfo.currentStatus] || "bg-slate-600"} text-white text-xs font-bold px-3 py-1 rounded-full`}
                     >
                       {batchInfo.currentStatus}
                     </span>
@@ -929,7 +929,7 @@ export default function ManufacturerDashboard() {
                     <>
                       <div className="text-xs bg-violet-500/10 border border-violet-500/20 rounded-lg px-3 py-2 space-y-1 text-slate-300">
                         <div>
-                          🔜 Next:{' '}
+                          🔜 Next:{" "}
                           <strong className="text-white">
                             {
                               STATUS_LABELS[
@@ -949,7 +949,7 @@ export default function ManufacturerDashboard() {
 
                       <div>
                         <label className="block text-sm text-slate-300 mb-1">
-                          Image Proof{' '}
+                          Image Proof{" "}
                           <span className="text-slate-500 text-xs">
                             (optional)
                           </span>
@@ -968,17 +968,17 @@ export default function ManufacturerDashboard() {
                         className="w-full bg-violet-500 hover:bg-violet-400 disabled:opacity-50 text-white font-medium rounded-lg py-3 transition-colors"
                       >
                         {updateLoading
-                          ? '📍 Detecting location & submitting…'
+                          ? "📍 Detecting location & submitting…"
                           : `Update to ${STATUS_LABELS[NEXT_STATUS[batchInfo.currentStatus]]}`}
                       </button>
                     </>
                   ) : (
                     <div className="text-sm text-slate-400 text-center py-2">
-                      {batchInfo.currentStatus === 'DELIVERED'
-                        ? '⏳ Awaiting hospital verification'
-                        : batchInfo.currentStatus === 'FLAGGED'
-                          ? '⚠️ Batch has been flagged'
-                          : '✅ No further updates possible'}
+                      {batchInfo.currentStatus === "DELIVERED"
+                        ? "⏳ Awaiting hospital verification"
+                        : batchInfo.currentStatus === "FLAGGED"
+                          ? "⚠️ Batch has been flagged"
+                          : "✅ No further updates possible"}
                     </div>
                   )}
                 </div>
@@ -990,9 +990,9 @@ export default function ManufacturerDashboard() {
                   className={`rounded-xl p-4 text-sm ${
                     updateResult.ok
                       ? updateResult.flagged
-                        ? 'bg-yellow-500/20 border border-yellow-500/30 text-yellow-300'
-                        : 'bg-green-500/20 border border-green-500/30 text-green-300'
-                      : 'bg-red-500/20 border border-red-500/30 text-red-300'
+                        ? "bg-yellow-500/20 border border-yellow-500/30 text-yellow-300"
+                        : "bg-green-500/20 border border-green-500/30 text-green-300"
+                      : "bg-red-500/20 border border-red-500/30 text-red-300"
                   }`}
                 >
                   {updateResult.ok ? (
@@ -1010,7 +1010,7 @@ export default function ManufacturerDashboard() {
                         <>
                           <div>✅ Status updated on-chain</div>
                           <div className="text-xs">
-                            Matched location:{' '}
+                            Matched location:{" "}
                             <span className="font-mono">
                               {updateResult.matchedLocationId}
                             </span>

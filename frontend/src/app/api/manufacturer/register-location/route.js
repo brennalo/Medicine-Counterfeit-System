@@ -19,14 +19,27 @@ const LOCATION_TYPES = {
 
 async function handler(request) {
   try {
-    const { name, locationType, address, latitude, longitude } = await request.json();
+    const { name, locationType, address, latitude, longitude } =
+      await request.json();
 
-    if (!name || !locationType || !address || latitude == null || longitude == null) {
-      return NextResponse.json({ error: "All location fields required" }, { status: 400 });
+    if (
+      !name ||
+      !locationType ||
+      !address ||
+      latitude == null ||
+      longitude == null
+    ) {
+      return NextResponse.json(
+        { error: "All location fields required" },
+        { status: 400 },
+      );
     }
 
     if (!(locationType in LOCATION_TYPES)) {
-      return NextResponse.json({ error: "Invalid location type" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid location type" },
+        { status: 400 },
+      );
     }
 
     const manufacturerId = request.user.userId;
@@ -35,13 +48,27 @@ async function handler(request) {
     const locationId = `loc_${randomBytes(8).toString("hex")}`;
 
     // Compute commitment hash of off-chain data
-    const locationDataHash = hashLocationData(name, locationType, address, latitude, longitude);
+    const locationDataHash = hashLocationData(
+      name,
+      locationType,
+      address,
+      latitude,
+      longitude,
+    );
 
     // ── Save full data to MySQL ───────────────────────────────────────────────
     await db.execute(
-      `INSERT INTO locations (id, name, type, address, latitude, longitude, manufacturer_id)
+      `INSERT INTO locations (id, name, type, address, latitude, longitude, user_id)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [locationId, name, locationType, address, latitude, longitude, manufacturerId]
+      [
+        locationId,
+        name,
+        locationType,
+        address,
+        latitude,
+        longitude,
+        manufacturerId,
+      ],
     );
 
     // ── Store hash + metadata on-chain ───────────────────────────────────────
@@ -51,7 +78,7 @@ async function handler(request) {
       name,
       LOCATION_TYPES[locationType],
       locationDataHash,
-      manufacturerId
+      manufacturerId,
     );
     await tx.wait();
 
@@ -63,7 +90,10 @@ async function handler(request) {
     });
   } catch (err) {
     console.error("[Register Location]", err);
-    return NextResponse.json({ error: err.message || "Internal error" }, { status: 500 });
+    return NextResponse.json(
+      { error: err.message || "Internal error" },
+      { status: 500 },
+    );
   }
 }
 

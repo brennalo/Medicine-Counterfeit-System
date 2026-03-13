@@ -31,19 +31,25 @@ export async function GET(request, { params }) {
   if (imageRow.length > 0) {
     const { batch_id, status_step } = imageRow[0];
     const registry = getMedicineRegistry();
-    const [, , , imageHashes] = await registry.getBatchHistory(batch_id);
+    const [statuses, , , imageHashes] =
+      await registry.getBatchHistory(batch_id);
 
-    // Find the history entry matching this status step
-    const onChainHash = imageHashes[status_step];
+    // Find the history entry where status matches status_step
+    const historyIndex = statuses.findIndex(
+      (s) => Number(s) === Number(status_step),
+    );
 
-    if (onChainHash && computedHash !== onChainHash) {
-      console.error(
-        `[TAMPER DETECTED] Image ${imageId} does not match on-chain hash`,
-      );
-      return NextResponse.json(
-        { error: "Image integrity check failed" },
-        { status: 500 },
-      );
+    if (historyIndex !== -1) {
+      const onChainHash = imageHashes[historyIndex];
+      if (onChainHash && computedHash !== onChainHash) {
+        console.error(
+          `[TAMPER DETECTED] Image ${imageId} does not match on-chain hash`,
+        );
+        return NextResponse.json(
+          { error: "Image integrity check failed" },
+          { status: 500 },
+        );
+      }
     }
   }
 
