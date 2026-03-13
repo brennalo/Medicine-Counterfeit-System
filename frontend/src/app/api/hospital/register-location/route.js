@@ -1,7 +1,9 @@
 // frontend/app/api/hospital/register-location/route.js
 import { NextResponse } from 'next/server';
+import { getLocationRegistry, hashLocationData } from '@/lib/blockchain';
 import { withAuth } from '@/lib/auth';
 import db from '@/lib/db';
+import { randomBytes } from 'crypto';
 
 async function handler(request) {
   try {
@@ -15,6 +17,18 @@ async function handler(request) {
     }
 
     const hospitalId = request.user.userId;
+
+    // Generate unique locationId
+    const locationId = `loc_${randomBytes(8).toString('hex')}`;
+
+    // Compute commitment hash of off-chain data
+    const locationDataHash = hashLocationData(
+      name,
+      'HOSPITAL',
+      address,
+      latitude,
+      longitude,
+    );
 
     // Check if this hospital already has a location registered
     const [existing] = await db.execute(
@@ -37,9 +51,20 @@ async function handler(request) {
 
     // Insert new hospital location — reuses same table as manufacturer locations
     const [result] = await db.execute(
-      "INSERT INTO locations (name, type, address, latitude, longitude, manufacturer_id) VALUES (?, 'HOSPITAL', ?, ?, ?, ?)",
-      [name, address, latitude, longitude, hospitalId],
+      "INSERT INTO locations (id, name, type, address, latitude, longitude, manufacturer_id) VALUES (?, ?, 'HOSPITAL', ?, ?, ?, ?)",
+      [locationId, name, address, latitude, longitude, hospitalId],
     );
+
+    // ── Store hash + metadata on-chain ───────────────────────────────────────
+    const registry = getLocationRegistry();
+    const tx = await registry.registerLocation(
+      locationId,
+      name,
+      LOCATION_TYPES['HOSPITAL'],
+      locationDataHash,
+      hospitalId,
+    );
+    await tx.wait();
 
     return NextResponse.json({
       success: true,

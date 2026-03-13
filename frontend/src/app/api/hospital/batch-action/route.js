@@ -1,14 +1,16 @@
 // frontend/app/api/hospital/batch-action/route.js
 import { NextResponse } from 'next/server';
-import { getMedicineRegistry } from '@/lib/blockchain';
+import { getMedicineRegistryAs, getMedicineRegistry } from '@/lib/blockchain';
 import { withAuth } from '@/lib/auth';
 import db from '@/lib/db';
 
 /**
  * POST body: { batchId, action: "verify" | "flag", flagReason?: string }
- * flagReason is a manual text reason entered by the hospital (stored in MySQL)
- * The on-chain status is set to FLAGGED with enum HOSPITAL_FLAGGED (5)
- * The full text reason is stored off-chain in MySQL for display
+ *
+ * Contract call is signed by the hospital's own wallet (getMedicineRegistryAs).
+ * msg.sender in the contract resolves to hospitalId via UserRegistry.
+ * hospitalId is therefore NOT passed to verifyBatch / flagBatch — contract
+ * reads msg.sender and enforces onlyHospital + onlyBatchHospital.
  */
 async function handler(request) {
   try {
@@ -36,25 +38,31 @@ async function handler(request) {
     }
 
     const hospitalId = request.user.userId;
-    const registry = getMedicineRegistry();
 
-    // Check batch exists on-chain
-    const batchExists = await registry.batchExistsPublic(batchId);
+    // Use read-only registry for existence check
+    const readRegistry = getMedicineRegistry();
+    const batchExists = await readRegistry.batchExistsPublic(batchId);
     if (!batchExists) {
       return NextResponse.json({ error: 'Batch not found' }, { status: 404 });
     }
 
+    // ── Sign with hospital's own wallet ───────────────────────────────────────
+    // msg.sender = hospital's registered wallet address
+    // Contract enforces: onlyHospital + onlyBatchHospital
+    // hospitalId parameter REMOVED from contract — resolved from msg.sender
+    const registry = getMedicineRegistryAs(hospitalId);
+
     let tx;
     if (action === 'verify') {
-      tx = await registry.verifyBatch(batchId, hospitalId);
+      tx = await registry.verifyBatch(batchId);
     } else {
-      // Flag on-chain (stores enum HOSPITAL_FLAGGED)
-      tx = await registry.flagBatch(batchId, hospitalId);
+      tx = await registry.flagBatch(batchId);
     }
 
     await tx.wait();
 
-    // If flagging, save the manual text reason to MySQL
+    // ── Save manual flag reason to MySQL ──────────────────────────────────────
+    // On-chain stores enum HOSPITAL_FLAGGED; full text reason lives off-chain.
     if (action === 'flag') {
       await db.execute(
         `INSERT INTO hospital_flag_reasons (batch_id, hospital_id, reason, flagged_at)

@@ -24,7 +24,7 @@ async function init() {
     CREATE TABLE locations (
       id               VARCHAR(64) PRIMARY KEY,
       name             VARCHAR(255) NOT NULL,
-      type             ENUM('FACTORY','DISTRIBUTION_CENTER','SORTING_CENTER') NOT NULL,
+      type             ENUM('FACTORY','DISTRIBUTION_CENTER','SORTING_CENTER','HOSPITAL') NOT NULL,
       address          TEXT NOT NULL,
       latitude         DECIMAL(10,8) NOT NULL,
       longitude        DECIMAL(11,8) NOT NULL,

@@ -325,7 +325,7 @@ export default function HospitalDashboard() {
   async function loadAllBatches() {
     setBatchesLoading(true);
     try {
-      const res = await fetch('/api/hospital/flagged-batches');
+      const res = await fetch('/api/hospital/view-all-batches');
       const data = await res.json();
       if (res.ok) setAllBatches(data.batches);
     } finally {
@@ -671,7 +671,7 @@ export default function HospitalDashboard() {
                       {batchData.images.map((img, i) => (
                         <a
                           key={i}
-                          href={img.image_path}
+                          href={`/api/images/${img.id}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-xs text-blue-300 hover:text-blue-200 transition-colors"
