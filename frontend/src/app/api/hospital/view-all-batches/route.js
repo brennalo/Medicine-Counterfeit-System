@@ -1,4 +1,4 @@
-// frontend/app/api/hospital/flagged-batches/route.js
+// frontend/app/api/hospital/view-all-batches/route.js
 import { NextResponse } from 'next/server';
 import { getMedicineRegistry } from '@/lib/blockchain';
 import { withAuth } from '@/lib/auth';

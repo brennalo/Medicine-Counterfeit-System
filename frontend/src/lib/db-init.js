@@ -28,7 +28,7 @@ async function init() {
       address          TEXT NOT NULL,
       latitude         DECIMAL(10,8) NOT NULL,
       longitude        DECIMAL(11,8) NOT NULL,
-      manufacturer_id  VARCHAR(64) NOT NULL,
+      user_id  VARCHAR(64) NOT NULL,
       created_at       DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
