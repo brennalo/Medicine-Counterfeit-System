@@ -5,7 +5,10 @@ import { jwtVerify } from "jose";
 import { NextResponse } from "next/server";
 
 const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || "change-me-in-production-32-chars-min"
+  process.env.JWT_SECRET ??
+    (() => {
+      throw new Error("JWT_SECRET is not set");
+    })(),
 );
 
 /**
@@ -26,6 +29,7 @@ export function withAuth(handler, requiredRole = null) {
   return async (request, context) => {
     try {
       const payload = await verifyToken(request);
+      console.log("[Auth] payload:", payload);
       if (requiredRole && payload.role !== requiredRole) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }

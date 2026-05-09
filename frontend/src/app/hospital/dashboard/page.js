@@ -1,19 +1,353 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 
+// ── Leaflet map picker ────────────────────────────────────────────────────────
+function MapPicker({ onLocationSelect, selectedCoords }) {
+  const mapRef = useRef(null);
+  const mapInstanceRef = useRef(null);
+  const markerRef = useRef(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+
+  const placeMarker = useCallback(
+    (L, lat, lng, address) => {
+      if (markerRef.current) {
+        markerRef.current.setLatLng([lat, lng]);
+      } else {
+        markerRef.current = L.marker([lat, lng]).addTo(mapInstanceRef.current);
+      }
+      mapInstanceRef.current.setView([lat, lng], 15);
+      onLocationSelect({ lat, lng, address });
+    },
+    [onLocationSelect],
+  );
+
+  async function searchLocation() {
+    if (!searchQuery.trim()) return;
+    setSearching(true);
+    setSearchResults([]);
+
+    // Strip lot/unit prefixes and clean up the query for Nominatim
+    const cleaned = searchQuery
+      .replace(/^(lot|no|unit|blok|block)[\s\d,.-]*/gi, "") // remove "Lot 8," etc
+      .replace(/\b\d{5}\b/g, "") // remove postcodes
+      .replace(/wilayah persekutuan/gi, "") // remove verbose admin terms
+      .replace(/,\s*,/g, ",") // clean double commas
+      .trim();
+
+    const queries = [searchQuery, cleaned].filter(Boolean);
+
+    try {
+      let results = [];
+
+      for (const q of queries) {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=5&countrycodes=my&addressdetails=1`,
+        );
+        const data = await res.json();
+        if (data.length > 0) {
+          results = data;
+          break; // use first query that returns results
+        }
+      }
+
+      if (results.length === 0) {
+        setSearchResults([
+          {
+            place_id: "none",
+            display_name: "No results found — try a landmark or area name",
+            disabled: true,
+          },
+        ]);
+      } else {
+        setSearchResults(results);
+      }
+    } catch (err) {
+      setSearchResults([
+        {
+          place_id: "error",
+          display_name: `Search failed: ${err.message}`,
+          disabled: true,
+        },
+      ]);
+    } finally {
+      setSearching(false);
+    }
+  }
+
+  function selectResult(result) {
+    if (result.disabled) return; // ← add this
+    const lat = parseFloat(result.lat);
+    const lng = parseFloat(result.lon);
+    placeMarker(window.L, lat, lng, result.display_name);
+    setSearchResults([]);
+    setSearchQuery(result.display_name);
+  }
+
+  useEffect(() => {
+    if (mapInstanceRef.current) return;
+
+    if (!document.querySelector("#leaflet-css")) {
+      const link = document.createElement("link");
+      link.id = "leaflet-css";
+      link.rel = "stylesheet";
+      link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+      document.head.appendChild(link);
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+    script.onload = () => {
+      const L = window.L;
+
+      if (mapRef.current._leaflet_id) {
+        mapRef.current._leaflet_id = null;
+      }
+      const map = L.map(mapRef.current).setView([3.139, 101.6869], 12);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "© OpenStreetMap contributors",
+      }).addTo(map);
+
+      map.on("click", (e) => {
+        const { lat, lng } = e.latlng;
+        fetch(
+          `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
+        )
+          .then((r) => r.json())
+          .then((d) =>
+            placeMarker(
+              L,
+              lat,
+              lng,
+              d.display_name || `${lat.toFixed(6)}, ${lng.toFixed(6)}`,
+            ),
+          )
+          .catch(() =>
+            placeMarker(L, lat, lng, `${lat.toFixed(6)}, ${lng.toFixed(6)}`),
+          );
+      });
+
+      mapInstanceRef.current = map;
+    };
+    document.head.appendChild(script);
+
+    return () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+        markerRef.current = null;
+      }
+    };
+  }, [placeMarker]);
+
+  return (
+    <div className="space-y-2">
+      {/* Search bar */}
+      <div className="relative">
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && searchLocation()}
+            placeholder="Search for road addresses or area names..."
+            className="flex-1 bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-white placeholder-white/30 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
+          />
+          <button
+            type="button"
+            onClick={searchLocation}
+            disabled={searching}
+            className="bg-violet-600 hover:bg-violet-500 disabled:opacity-50 px-4 py-2 rounded-lg text-sm text-white transition-colors"
+          >
+            {searching ? "…" : "Search"}
+          </button>
+        </div>
+
+        {/* Dropdown results */}
+        {searchResults.length > 0 && (
+          <ul className="absolute z-10 mt-1 w-full bg-slate-800 border border-white/10 rounded-lg shadow-xl overflow-hidden">
+            {searchResults.map((r) => (
+              <li key={r.place_id}>
+                <button
+                  type="button"
+                  onClick={() => selectResult(r)}
+                  className="w-full text-left px-4 py-2.5 text-sm text-slate-200 hover:bg-white/10 transition-colors border-b border-white/5 last:border-0"
+                >
+                  {r.display_name}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {/* Map */}
+      <div
+        ref={mapRef}
+        style={{ height: "300px", borderRadius: "12px", zIndex: 0 }}
+      />
+      <p className="text-xs text-slate-400">
+        📍 Search for a location above, or click anywhere on the map to pin it
+      </p>
+      <p className="text-xs text-slate-400">
+        Do note that every hospital can only be assigned to ONE registered
+        location, registering a new location will update the existing record.
+      </p>
+      {selectedCoords && (
+        <div className="bg-white/5 rounded-lg px-3 py-2 text-xs text-green-400">
+          Selected: {selectedCoords.lat.toFixed(6)},{" "}
+          {selectedCoords.lng.toFixed(6)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Flag Reason Modal ─────────────────────────────────────────────────────────
+function FlagModal({ batchId, onConfirm, onCancel }) {
+  const [reason, setReason] = useState("");
+  return (
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-slate-900 border border-red-500/30 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 bg-red-500/20 rounded-xl flex items-center justify-center">
+            <span className="text-xl">🚩</span>
+          </div>
+          <div>
+            <h3 className="font-semibold text-white">Flag Batch</h3>
+            <p className="text-xs text-slate-400">
+              Batch: {batchId?.slice(0, 20)}…
+            </p>
+          </div>
+        </div>
+        <p className="text-sm text-slate-300 mb-4">
+          Please provide a reason for flagging this batch. This will be recorded
+          alongside the on-chain flag.
+        </p>
+        <textarea
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder="e.g. Damaged packaging observed upon delivery, suspected tampering..."
+          rows={4}
+          className="w-full bg-white/5 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/30 text-sm focus:outline-none focus:ring-2 focus:ring-red-400 resize-none mb-4"
+          autoFocus
+        />
+        <div className="flex gap-3">
+          <button
+            onClick={onCancel}
+            className="flex-1 bg-white/10 hover:bg-white/20 text-white font-medium rounded-lg py-2.5 transition-colors text-sm"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => onConfirm(reason)}
+            disabled={!reason.trim()}
+            className="flex-1 bg-red-600 hover:bg-red-500 disabled:opacity-40 text-white font-medium rounded-lg py-2.5 transition-colors text-sm"
+          >
+            Confirm Flag
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main Dashboard ────────────────────────────────────────────────────────────
 export default function HospitalDashboard() {
   const [activeTab, setActiveTab] = useState("verify");
 
-  // ── Register Manufacturer state ───────────────────────────────────────────
+  // ── Register Manufacturer ─────────────────────────────────────────────────
   const [regForm, setRegForm] = useState({ userId: "", password: "" });
   const [regResult, setRegResult] = useState(null);
   const [regLoading, setRegLoading] = useState(false);
 
-  // ── Batch action state ────────────────────────────────────────────────────
+  // ── Batch lookup & action ─────────────────────────────────────────────────
   const [batchId, setBatchId] = useState("");
   const [batchData, setBatchData] = useState(null);
   const [batchLoading, setBatchLoading] = useState(false);
   const [actionResult, setActionResult] = useState(null);
+
+  // ── Flag modal ────────────────────────────────────────────────────────────
+  const [showFlagModal, setShowFlagModal] = useState(false);
+
+  // ── Image Error modal ────────────────────────────────────────────────────────────
+  const [imageError, setImageError] = useState(null);
+  const [imageModal, setImageModal] = useState(null);
+
+  // ── All batches list + filter ─────────────────────────────────────────────
+  const [allBatches, setAllBatches] = useState([]);
+  const [batchesLoading, setBatchesLoading] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("ALL");
+
+  // ── Hospital Location ─────────────────────────────────────────────────────
+  const [locForm, setLocForm] = useState({
+    name: "",
+    address: "",
+    latitude: null,
+    longitude: null,
+  });
+  const [locResult, setLocResult] = useState(null);
+  const [locLoading, setLocLoading] = useState(false);
+
+  const handleMapSelect = useCallback(({ lat, lng, address }) => {
+    setLocForm((prev) => ({ ...prev, latitude: lat, longitude: lng, address }));
+  }, []);
+
+  async function registerHospitalLocation(e) {
+    e.preventDefault();
+    if (!locForm.latitude || !locForm.longitude) {
+      alert("Please pin your location on the map first");
+      return;
+    }
+    setLocLoading(true);
+    setLocResult(null);
+    try {
+      const res = await fetch("/api/hospital/register-location", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: locForm.name,
+          address: locForm.address,
+          latitude: locForm.latitude,
+          longitude: locForm.longitude,
+        }),
+      });
+      const data = await res.json();
+      setLocResult({ ok: res.ok, ...data });
+      if (res.ok)
+        setLocForm({ name: "", address: "", latitude: null, longitude: null });
+    } finally {
+      setLocLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (activeTab === "batches") loadAllBatches();
+  }, [activeTab]);
+
+  async function loadAllBatches() {
+    setBatchesLoading(true);
+    try {
+      const res = await fetch("/api/hospital/view-all-batches");
+      const data = await res.json();
+      if (res.ok) setAllBatches(data.batches);
+    } finally {
+      setBatchesLoading(false);
+    }
+  }
+
+  // Apply filter
+  const filteredBatches =
+    statusFilter === "ALL"
+      ? allBatches
+      : allBatches.filter((b) => b.status === statusFilter);
+
+  // Counts for filter badges
+  const counts = allBatches.reduce((acc, b) => {
+    acc[b.status] = (acc[b.status] || 0) + 1;
+    return acc;
+  }, {});
 
   async function registerManufacturer(e) {
     e.preventDefault();
@@ -47,18 +381,44 @@ export default function HospitalDashboard() {
     }
   }
 
-  async function submitBatchAction(action) {
+  async function submitVerify() {
     setBatchLoading(true);
     setActionResult(null);
     try {
       const res = await fetch("/api/hospital/batch-action", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ batchId: batchData.batchId, action }),
+        body: JSON.stringify({ batchId: batchData.batchId, action: "verify" }),
       });
       const data = await res.json();
-      setActionResult({ ok: res.ok, action, ...data });
-      if (res.ok) lookupBatch(); // refresh
+      setActionResult({ ok: res.ok, action: "verify", ...data });
+      if (res.ok) lookupBatch();
+    } finally {
+      setBatchLoading(false);
+    }
+  }
+
+  function initiateFlag() {
+    setShowFlagModal(true);
+  }
+
+  async function confirmFlag(reason) {
+    setShowFlagModal(false);
+    setBatchLoading(true);
+    setActionResult(null);
+    try {
+      const res = await fetch("/api/hospital/batch-action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          batchId: batchData.batchId,
+          action: "flag",
+          flagReason: reason,
+        }),
+      });
+      const data = await res.json();
+      setActionResult({ ok: res.ok, action: "flag", ...data });
+      if (res.ok) lookupBatch();
     } finally {
       setBatchLoading(false);
     }
@@ -68,14 +428,89 @@ export default function HospitalDashboard() {
     CREATED: "bg-slate-500",
     SHIPPED: "bg-blue-500",
     SORTED: "bg-yellow-500",
+    DISTRIBUTED: "bg-orange-500",
     DELIVERED: "bg-green-500",
     VERIFIED: "bg-emerald-500",
     FLAGGED: "bg-red-500",
   };
 
+  const flagReasonColor = {
+    "Hospital Flagged": "bg-red-500/20 text-red-300 border-red-500/30",
+    "Near Expiry": "bg-orange-500/20 text-orange-300 border-orange-500/30",
+    "Outside Registered Location":
+      "bg-yellow-500/20 text-yellow-300 border-yellow-500/30",
+    "Duplicate Location Update":
+      "bg-purple-500/20 text-purple-300 border-purple-500/30",
+    "Invalid Status Order": "bg-pink-500/20 text-pink-300 border-pink-500/30",
+  };
+
+  const filterOptions = [
+    { key: "ALL", label: "All", color: "bg-white/10 text-slate-300" },
+    {
+      key: "CREATED",
+      label: "Created",
+      color: "bg-slate-500/20 text-slate-300",
+    },
+    { key: "SHIPPED", label: "Shipped", color: "bg-blue-500/20 text-blue-300" },
+    {
+      key: "SORTED",
+      label: "Sorted",
+      color: "bg-yellow-500/20 text-yellow-300",
+    },
+    {
+      key: "DISTRIBUTED",
+      label: "Distributed",
+      color: "bg-orange-500/20 text-orange-300",
+    },
+    {
+      key: "DELIVERED",
+      label: "Delivered",
+      color: "bg-green-500/20 text-green-300",
+    },
+    {
+      key: "VERIFIED",
+      label: "Verified",
+      color: "bg-emerald-500/20 text-emerald-300",
+    },
+    { key: "FLAGGED", label: "Flagged", color: "bg-red-500/20 text-red-300" },
+  ];
+
   return (
     <div className="min-h-screen bg-slate-950 text-white">
-      {/* Header */}
+      {showFlagModal && (
+        <FlagModal
+          batchId={batchData?.batchId}
+          onConfirm={confirmFlag}
+          onCancel={() => setShowFlagModal(false)}
+        />
+      )}
+
+      {imageModal && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-900 border border-white/20 rounded-2xl p-4 max-w-2xl w-full">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-medium text-slate-300">
+                {imageModal.label}
+              </span>
+              <button
+                onClick={() => {
+                  URL.revokeObjectURL(imageModal.url);
+                  setImageModal(null);
+                }}
+                className="text-slate-400 hover:text-white text-xl leading-none"
+              >
+                ✕
+              </button>
+            </div>
+            <img
+              src={imageModal.url}
+              alt={imageModal.label}
+              className="w-full rounded-lg"
+            />
+          </div>
+        </div>
+      )}
+
       <header className="border-b border-white/10 bg-white/5">
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -85,7 +520,10 @@ export default function HospitalDashboard() {
             <span className="font-semibold">Hospital Portal</span>
           </div>
           <button
-            onClick={() => { document.cookie = "auth_token=; max-age=0"; window.location.href = "/"; }}
+            onClick={async () => {
+              await fetch("/api/auth/logout", { method: "POST" });
+              window.location.href = "/";
+            }}
             className="text-sm text-slate-400 hover:text-white transition-colors"
           >
             Sign out
@@ -95,9 +533,11 @@ export default function HospitalDashboard() {
 
       <main className="max-w-5xl mx-auto px-6 py-8">
         {/* Tabs */}
-        <div className="flex gap-2 mb-8">
+        <div className="flex gap-2 mb-8 flex-wrap">
           {[
-            { key: "verify", label: "Verify / Flag Batch" },
+            { key: "verify", label: "Search Batch" },
+            { key: "batches", label: "📋 View All Batches" },
+            { key: "location", label: "Register Location" },
             { key: "register", label: "Register Manufacturer" },
           ].map((tab) => (
             <button
@@ -114,16 +554,19 @@ export default function HospitalDashboard() {
           ))}
         </div>
 
-        {/* ── Verify / Flag Tab ─────────────────────────────────────────────── */}
+        {/* ── Search Tab ──────────────────────────────────────────────── */}
         {activeTab === "verify" && (
           <div className="space-y-6">
             <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
-              <h2 className="text-lg font-semibold mb-4">Look up Medicine Batch</h2>
+              <h2 className="text-lg font-semibold mb-4">
+                Look up Medicine Batch
+              </h2>
               <div className="flex gap-3">
                 <input
                   type="text"
                   value={batchId}
                   onChange={(e) => setBatchId(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && lookupBatch()}
                   placeholder="Enter Batch ID (0x...)"
                   className="flex-1 bg-white/10 border border-white/20 rounded-lg px-4 py-2.5 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-blue-400"
                 />
@@ -138,16 +581,33 @@ export default function HospitalDashboard() {
             </div>
 
             {actionResult && (
-              <div className={`rounded-xl p-4 text-sm ${actionResult.ok ? "bg-green-500/20 border border-green-500/30 text-green-300" : "bg-red-500/20 border border-red-500/30 text-red-300"}`}>
-                {actionResult.ok
-                  ? `✅ Batch ${actionResult.action === "verify" ? "verified" : "flagged"} — tx: ${actionResult.txHash?.slice(0, 20)}…`
-                  : `❌ ${actionResult.error}`}
+              <div
+                className={`rounded-xl p-4 text-sm ${actionResult.ok ? "bg-green-500/20 border border-green-500/30 text-green-300" : "bg-red-500/20 border border-red-500/30 text-red-300"}`}
+              >
+                {actionResult.ok ? (
+                  <div>
+                    <div>
+                      {actionResult.action === "verify"
+                        ? "✅ Batch verified on-chain"
+                        : "🚩 Batch flagged on-chain"}
+                    </div>
+                    {actionResult.flagReason && (
+                      <div className="text-xs mt-1 opacity-80">
+                        Reason recorded: "{actionResult.flagReason}"
+                      </div>
+                    )}
+                    <div className="text-xs mt-1 opacity-60">
+                      tx: {actionResult.txHash?.slice(0, 24)}…
+                    </div>
+                  </div>
+                ) : (
+                  `❌ ${actionResult.error}`
+                )}
               </div>
             )}
 
             {batchData && (
               <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-6">
-                {/* Batch info */}
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   {[
                     ["Batch ID", batchData.batchId?.slice(0, 18) + "…"],
@@ -155,7 +615,10 @@ export default function HospitalDashboard() {
                     ["Medicine ID", batchData.medicineId],
                     ["Hospital", batchData.hospitalId],
                     ["Manufacturer", batchData.manufacturerId],
-                    ["Expiry", new Date(batchData.expiryDate).toLocaleDateString()],
+                    [
+                      "Expiry",
+                      new Date(batchData.expiryDate).toLocaleDateString(),
+                    ],
                   ].map(([k, v]) => (
                     <div key={k}>
                       <div className="text-xs text-slate-400 mb-1">{k}</div>
@@ -164,51 +627,64 @@ export default function HospitalDashboard() {
                   ))}
                 </div>
 
-                {/* Current status badge */}
-                <div className="flex items-center gap-3">
-                  <span className="text-sm text-slate-400">Current Status:</span>
-                  <span className={`${statusColor[batchData.currentStatus] || "bg-slate-600"} text-white text-xs font-bold px-3 py-1 rounded-full`}>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <span className="text-sm text-slate-400">
+                    Current Status:
+                  </span>
+                  <span
+                    className={`${statusColor[batchData.currentStatus] || "bg-slate-600"} text-white text-xs font-bold px-3 py-1 rounded-full`}
+                  >
                     {batchData.currentStatus}
                   </span>
                   {batchData.currentFlagReason !== "NONE" && (
-                    <span className="text-xs text-red-400">({batchData.currentFlagReason.replace(/_/g, " ")})</span>
+                    <span className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded-full">
+                      {batchData.currentFlagReason.replace(/_/g, " ")}
+                    </span>
                   )}
                 </div>
 
-                {/* Action buttons */}
                 {batchData.currentStatus === "DELIVERED" && (
                   <div className="flex gap-3">
                     <button
-                      onClick={() => submitBatchAction("verify")}
+                      onClick={submitVerify}
                       disabled={batchLoading}
-                      className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 px-6 py-2 rounded-lg font-medium text-sm transition-colors"
+                      className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 px-6 py-2.5 rounded-lg font-medium text-sm transition-colors"
                     >
                       ✅ Verify Batch
                     </button>
                     <button
-                      onClick={() => submitBatchAction("flag")}
+                      onClick={initiateFlag}
                       disabled={batchLoading}
-                      className="bg-red-600 hover:bg-red-500 disabled:opacity-50 px-6 py-2 rounded-lg font-medium text-sm transition-colors"
+                      className="bg-red-600 hover:bg-red-500 disabled:opacity-50 px-6 py-2.5 rounded-lg font-medium text-sm transition-colors"
                     >
                       🚩 Flag Batch
                     </button>
                   </div>
                 )}
 
-                {/* History timeline */}
                 <div>
-                  <h3 className="text-sm font-semibold text-slate-300 mb-3">Status History</h3>
+                  <h3 className="text-sm font-semibold text-slate-300 mb-3">
+                    Status History
+                  </h3>
                   <div className="space-y-2">
                     {batchData.history?.map((h, i) => (
                       <div key={i} className="flex items-start gap-3 text-sm">
-                        <span className={`${statusColor[h.status] || "bg-slate-600"} text-white text-xs px-2 py-0.5 rounded-full mt-0.5 shrink-0`}>
+                        <span
+                          className={`${statusColor[h.status] || "bg-slate-600"} text-white text-xs px-2 py-0.5 rounded-full mt-0.5 shrink-0`}
+                        >
                           {h.status}
                         </span>
                         <div className="text-slate-300">
-                          {new Date(h.timestamp).toLocaleString()}
-                          {h.locationId && <span className="text-slate-500 ml-2">@ {h.locationId.slice(0, 12)}…</span>}
+                          <span>{new Date(h.timestamp).toLocaleString()}</span>
+                          {h.locationId && h.locationId !== "none" && (
+                            <span className="text-slate-500 ml-2">
+                              @ {h.locationId.slice(0, 12)}…
+                            </span>
+                          )}
                           {h.flagReason !== "NONE" && (
-                            <span className="text-red-400 ml-2">⚠ {h.flagReason.replace(/_/g, " ")}</span>
+                            <span className="text-red-400 ml-2">
+                              ⚠ {h.flagReason.replace(/_/g, " ")}
+                            </span>
                           )}
                         </div>
                       </div>
@@ -216,18 +692,42 @@ export default function HospitalDashboard() {
                   </div>
                 </div>
 
-                {/* Images */}
                 {batchData.images?.length > 0 && (
                   <div>
-                    <h3 className="text-sm font-semibold text-slate-300 mb-3">Proof Images</h3>
+                    <h3 className="text-sm font-semibold text-slate-300 mb-3">
+                      Proof Images
+                    </h3>
                     <div className="flex flex-wrap gap-3">
                       {batchData.images.map((img, i) => (
-                        <a key={i} href={img.image_path} target="_blank" rel="noopener noreferrer"
-                          className="bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-xs text-blue-300 hover:text-blue-200">
+                        <button
+                          key={i}
+                          onClick={async () => {
+                            setImageError(null);
+                            const res = await fetch(`/api/images/${img.id}`);
+                            if (!res.ok) {
+                              const data = await res.json();
+                              setImageError(
+                                data.error || "Failed to load image",
+                              );
+                            } else {
+                              const blob = await res.blob();
+                              setImageModal({
+                                url: URL.createObjectURL(blob),
+                                label: `Image #${i + 1} (step ${img.status_step})`,
+                              });
+                            }
+                          }}
+                          className="bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-xs text-blue-300 hover:text-blue-200 transition-colors"
+                        >
                           Image #{i + 1} (step {img.status_step})
-                        </a>
+                        </button>
                       ))}
                     </div>
+                    {imageError && (
+                      <div className="mt-3 bg-red-500/20 border border-red-500/30 text-red-300 text-sm rounded-lg p-3">
+                        ⚠️ {imageError}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -235,38 +735,325 @@ export default function HospitalDashboard() {
           </div>
         )}
 
+        {/* ── View All Batches Tab ───────────────────────────────────────────── */}
+        {activeTab === "batches" && (
+          <div className="space-y-4">
+            {/* Header row */}
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <h2 className="text-lg font-semibold">All Batches</h2>
+                <p className="text-sm text-slate-400 mt-1">
+                  All medicine batches assigned to your hospital across all
+                  stages.
+                </p>
+              </div>
+              <button
+                onClick={loadAllBatches}
+                disabled={batchesLoading}
+                className="bg-white/10 hover:bg-white/20 disabled:opacity-50 px-4 py-2 rounded-lg text-sm transition-colors"
+              >
+                {batchesLoading ? "Loading…" : "↻ Refresh"}
+              </button>
+            </div>
+
+            {/* Filter pills */}
+            <div className="flex gap-2 flex-wrap">
+              {filterOptions.map(({ key, label, color }) => (
+                <button
+                  key={key}
+                  onClick={() => setStatusFilter(key)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                    statusFilter === key
+                      ? `${color} border-current opacity-100`
+                      : "bg-white/5 text-slate-400 border-white/10 hover:bg-white/10"
+                  }`}
+                >
+                  {label}
+                  {key !== "ALL" && counts[key] ? (
+                    <span className="ml-1.5 bg-white/20 px-1.5 py-0.5 rounded-full">
+                      {counts[key]}
+                    </span>
+                  ) : key === "ALL" ? (
+                    <span className="ml-1.5 bg-white/20 px-1.5 py-0.5 rounded-full">
+                      {allBatches.length}
+                    </span>
+                  ) : null}
+                </button>
+              ))}
+            </div>
+
+            {/* Loading */}
+            {batchesLoading && (
+              <div className="text-center py-12 text-slate-400">
+                Loading batches…
+              </div>
+            )}
+
+            {/* Empty state */}
+            {!batchesLoading && filteredBatches.length === 0 && (
+              <div className="bg-white/5 border border-white/10 rounded-2xl p-12 text-center">
+                <div className="text-4xl mb-3">📭</div>
+                <div className="text-slate-300 font-medium">
+                  {statusFilter === "ALL"
+                    ? "No batches yet"
+                    : `No ${statusFilter.toLowerCase()} batches`}
+                </div>
+                <div className="text-slate-500 text-sm mt-1">
+                  {statusFilter !== "ALL" && (
+                    <button
+                      onClick={() => setStatusFilter("ALL")}
+                      className="text-blue-400 hover:text-blue-300 transition-colors"
+                    >
+                      Show all batches
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Batch cards */}
+            {!batchesLoading && filteredBatches.length > 0 && (
+              <div className="space-y-3">
+                {filteredBatches.map((batch) => (
+                  <div
+                    key={batch.batchId}
+                    className={`bg-white/5 rounded-2xl p-5 border ${
+                      batch.status === "FLAGGED"
+                        ? "border-red-500/20"
+                        : batch.status === "VERIFIED"
+                          ? "border-emerald-500/20"
+                          : "border-white/10"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-4 flex-wrap">
+                      {/* Left */}
+                      <div className="space-y-2 min-w-0">
+                        {/* Status + flag reason badges */}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span
+                            className={`${statusColor[batch.status]} text-white text-xs font-bold px-2.5 py-0.5 rounded-full`}
+                          >
+                            {batch.status}
+                          </span>
+                          {batch.flagReason && (
+                            <span
+                              className={`text-xs font-medium px-2.5 py-0.5 rounded-full border ${flagReasonColor[batch.flagReason] || "bg-slate-500/20 text-slate-300 border-slate-500/30"}`}
+                            >
+                              {batch.flagReason}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Medicine info */}
+                        <div>
+                          <div className="font-semibold text-white">
+                            {batch.medicineName}
+                          </div>
+                          <div className="text-xs text-slate-400 mt-0.5">
+                            Medicine ID: {batch.medicineId}
+                          </div>
+                        </div>
+
+                        <div className="font-mono text-xs text-slate-500 break-all">
+                          {batch.batchId}
+                        </div>
+
+                        {/* Hospital note (flagged only) */}
+                        {batch.manualReason && (
+                          <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+                            <div className="text-xs text-red-400 font-medium mb-0.5">
+                              Hospital note:
+                            </div>
+                            <div className="text-sm text-red-300">
+                              "{batch.manualReason}"
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Right: metadata */}
+                      <div className="text-right text-xs text-slate-400 space-y-1 shrink-0">
+                        <div>
+                          Manufacturer:{" "}
+                          <span className="text-white">
+                            {batch.manufacturerId}
+                          </span>
+                        </div>
+                        <div>
+                          Expiry:{" "}
+                          <span className="text-white">
+                            {new Date(batch.expiryDate).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <div>
+                          Created:{" "}
+                          <span className="text-white">
+                            {new Date(batch.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                        {batch.flaggedAt && (
+                          <div>
+                            Flagged:{" "}
+                            <span className="text-red-300">
+                              {new Date(batch.flaggedAt).toLocaleString()}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* View details link */}
+                    <div className="mt-4 pt-4 border-t border-white/5">
+                      <button
+                        onClick={() => {
+                          setBatchId(batch.batchId);
+                          setActiveTab("verify");
+                          setTimeout(lookupBatch, 100);
+                        }}
+                        className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                      >
+                        View full batch details →
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Register Location ─────────────────────────────────────────────── */}
+        {activeTab === "location" && (
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-6 max-w-2xl">
+            <h2 className="text-lg font-semibold mb-2">
+              Register Verified Location
+            </h2>
+            <p className="text-sm text-slate-400 mb-6">
+              Pin your location on the map — coordinates and address are
+              extracted automatically.
+            </p>
+            {locResult && (
+              <div
+                className={`rounded-xl p-4 text-sm mb-4 ${locResult.ok ? "bg-green-500/20 border border-green-500/30 text-green-300" : "bg-red-500/20 border border-red-500/30 text-red-300"}`}
+              >
+                {locResult.ok ? (
+                  <div>
+                    <div>✅ Location registered on-chain</div>
+                    <div className="text-xs mt-1">
+                      ID:{" "}
+                      <span className="font-mono">{locResult.locationId}</span>
+                    </div>
+                    <div className="font-mono text-xs mt-1 break-all opacity-60">
+                      Hash: {locResult.locationDataHash}
+                    </div>
+                  </div>
+                ) : (
+                  `❌ ${locResult.error}`
+                )}
+              </div>
+            )}
+            <form onSubmit={registerHospitalLocation} className="space-y-5">
+              <div className="grid grid-cols-1 gap-4">
+                <label className="block text-sm text-slate-300 mb-1">
+                  Location Name
+                </label>
+                <input
+                  type="text"
+                  value={locForm.name}
+                  onChange={(e) =>
+                    setLocForm({ ...locForm, name: e.target.value })
+                  }
+                  className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2.5 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-violet-400"
+                  placeholder="e.g. Main Hospital - Cheras"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm text-slate-300 mb-2">
+                  Pin Location on Map
+                </label>
+                <MapPicker
+                  onLocationSelect={handleMapSelect}
+                  selectedCoords={
+                    locForm.latitude
+                      ? { lat: locForm.latitude, lng: locForm.longitude }
+                      : null
+                  }
+                />
+              </div>
+
+              {locForm.address && (
+                <div>
+                  <label className="block text-sm text-slate-300 mb-1">
+                    Address (auto-detected)
+                  </label>
+                  <div className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-slate-300 text-sm leading-relaxed">
+                    {locForm.address}
+                  </div>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={locLoading || !locForm.latitude}
+                className="w-full bg-violet-500 hover:bg-violet-400 disabled:opacity-50 text-white font-medium rounded-lg py-2.5 transition-colors"
+              >
+                {locLoading
+                  ? "Registering on-chain…"
+                  : !locForm.latitude
+                    ? "📍 Pin a location on the map first"
+                    : "Register Location"}
+              </button>
+            </form>
+          </div>
+        )}
         {/* ── Register Manufacturer Tab ──────────────────────────────────────── */}
         {activeTab === "register" && (
           <div className="bg-white/5 border border-white/10 rounded-2xl p-6 max-w-md">
-            <h2 className="text-lg font-semibold mb-4">Register New Manufacturer</h2>
+            <h2 className="text-lg font-semibold mb-4">
+              Register New Manufacturer
+            </h2>
             <p className="text-sm text-slate-400 mb-6">
               Credentials will be bcrypt-hashed and stored on-chain.
             </p>
 
             {regResult && (
-              <div className={`rounded-xl p-4 text-sm mb-4 ${regResult.ok ? "bg-green-500/20 border border-green-500/30 text-green-300" : "bg-red-500/20 border border-red-500/30 text-red-300"}`}>
-                {regResult.ok ? `✅ Manufacturer registered — tx: ${regResult.txHash?.slice(0, 20)}…` : `❌ ${regResult.error}`}
+              <div
+                className={`rounded-xl p-4 text-sm mb-4 ${regResult.ok ? "bg-green-500/20 border border-green-500/30 text-green-300" : "bg-red-500/20 border border-red-500/30 text-red-300"}`}
+              >
+                {regResult.ok
+                  ? `✅ Manufacturer registered — tx: ${regResult.txHash?.slice(0, 20)}…`
+                  : `❌ ${regResult.error}`}
               </div>
             )}
 
             <form onSubmit={registerManufacturer} className="space-y-4">
               <div>
-                <label className="block text-sm text-slate-300 mb-1">Manufacturer User ID</label>
+                <label className="block text-sm text-slate-300 mb-1">
+                  Manufacturer User ID
+                </label>
                 <input
                   type="text"
                   value={regForm.userId}
-                  onChange={(e) => setRegForm({ ...regForm, userId: e.target.value })}
+                  onChange={(e) =>
+                    setRegForm({ ...regForm, userId: e.target.value })
+                  }
                   className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2.5 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-blue-400"
                   placeholder="e.g. manufacturer_001"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm text-slate-300 mb-1">Password</label>
+                <label className="block text-sm text-slate-300 mb-1">
+                  Password
+                </label>
                 <input
                   type="password"
                   value={regForm.password}
-                  onChange={(e) => setRegForm({ ...regForm, password: e.target.value })}
+                  onChange={(e) =>
+                    setRegForm({ ...regForm, password: e.target.value })
+                  }
                   className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2.5 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-blue-400"
                   placeholder="Assign a password"
                   required

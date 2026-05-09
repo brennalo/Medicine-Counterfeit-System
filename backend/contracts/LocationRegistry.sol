@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.28;
+pragma solidity ^0.8.20;
 
 /**
  * @title LocationRegistry
@@ -8,7 +8,7 @@ pragma solidity ^0.8.28;
  *      This allows verification that off-chain data hasn't been tampered with.
  */
 contract LocationRegistry {
-    enum LocationType { FACTORY, DISTRIBUTION_CENTER, SORTING_CENTER }
+    enum LocationType { FACTORY, DISTRIBUTION_CENTER, SORTING_CENTER, HOSPITAL }
 
     struct Location {
         string locationId;
@@ -49,7 +49,7 @@ contract LocationRegistry {
      * @dev Register a verified location.
      * @param _locationId Unique location identifier
      * @param _name Location name
-     * @param _locationType 0=FACTORY, 1=DISTRIBUTION_CENTER, 2=SORTING_CENTER
+     * @param _locationType 0=FACTORY, 1=DISTRIBUTION_CENTER, 2=SORTING_CENTER, 3=HOSPITAL
      * @param _locationDataHash keccak256 hash of the off-chain data row
      * @param _manufacturerId Owner manufacturer
      */
@@ -61,7 +61,7 @@ contract LocationRegistry {
         string memory _manufacturerId
     ) external {
         require(!locations[_locationId].exists, "Location already registered");
-        require(_locationType <= 2, "Invalid location type");
+        require(_locationType <= 3, "Invalid location type");
 
         locations[_locationId] = Location({
             locationId: _locationId,
