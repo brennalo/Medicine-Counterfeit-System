@@ -5,7 +5,10 @@ import { getUserRegistry } from "@/lib/blockchain";
 import { SignJWT } from "jose";
 
 const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || "change-me-in-production-32-chars-min"
+  process.env.JWT_SECRET ??
+    (() => {
+      throw new Error("JWT_SECRET is not set");
+    })(),
 );
 
 export async function POST(request) {
@@ -13,7 +16,10 @@ export async function POST(request) {
     const { userId, password } = await request.json();
 
     if (!userId || !password) {
-      return NextResponse.json({ error: "userId and password required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "userId and password required" },
+        { status: 400 },
+      );
     }
 
     // ── Fetch credentials from on-chain ──────────────────────────────────────
@@ -21,13 +27,19 @@ export async function POST(request) {
     const [bcryptHash, role, exists] = await registry.getCredentials(userId);
 
     if (!exists) {
-      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Invalid credentials" },
+        { status: 401 },
+      );
     }
 
     // ── BCrypt.checkpw equivalent ─────────────────────────────────────────────
     const valid = await bcrypt.compare(password, bcryptHash);
     if (!valid) {
-      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Invalid credentials" },
+        { status: 401 },
+      );
     }
 
     // ── Issue JWT ─────────────────────────────────────────────────────────────
@@ -55,6 +67,9 @@ export async function POST(request) {
     return response;
   } catch (err) {
     console.error("[Login Error]", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }

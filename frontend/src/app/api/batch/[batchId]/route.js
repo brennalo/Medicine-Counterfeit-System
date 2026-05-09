@@ -1,29 +1,31 @@
 // frontend/app/api/batch/[batchId]/route.js
-import { NextResponse } from "next/server";
-import { getMedicineRegistry } from "@/lib/blockchain";
-import db from "@/lib/db";
+import { NextResponse } from 'next/server';
+import { getMedicineRegistry } from '@/lib/blockchain';
+import db from '@/lib/db';
 
 const STATUS_LABELS = [
-  "CREATED",
-  "SHIPPED",
-  "SORTED",
-  "DELIVERED",
-  "VERIFIED",
-  "FLAGGED",
+  'CREATED',
+  'SHIPPED',
+  'SORTED',
+  'DISTRIBUTED',
+  'DELIVERED',
+  'VERIFIED',
+  'FLAGGED',
 ];
 const FLAG_LABELS = [
-  "NONE",
-  "NEAR_EXPIRY",
-  "OUTSIDE_REGISTERED_LOCATION",
-  "DUPLICATE_LOCATION_UPDATE",
-  "INVALID_STATUS_ORDER",
-  "HOSPITAL_FLAGGED",
+  'NONE',
+  'NEAR_EXPIRY',
+  'OUTSIDE_REGISTERED_LOCATION',
+  'DUPLICATE_LOCATION_UPDATE',
+  'INVALID_STATUS_ORDER',
+  'HOSPITAL_FLAGGED',
 ];
 
 export async function GET(request, { params }) {
   try {
     // Support both Promise and plain object for params
-    const resolvedParams = typeof params.then === 'function' ? await params : params;
+    const resolvedParams =
+      typeof params.then === 'function' ? await params : params;
     const { batchId } = resolvedParams;
     const registry = getMedicineRegistry();
 
@@ -40,7 +42,7 @@ export async function GET(request, { params }) {
     ] = await registry.getBatch(batchId);
 
     if (!exists) {
-      return NextResponse.json({ error: "Batch not found" }, { status: 404 });
+      return NextResponse.json({ error: 'Batch not found' }, { status: 404 });
     }
 
     // Fetch history
@@ -64,7 +66,7 @@ export async function GET(request, { params }) {
 
     // Enrich with off-chain image paths
     const [images] = await db.execute(
-      "SELECT status_step, image_path, uploaded_at FROM batch_images WHERE batch_id = ? ORDER BY id",
+      'SELECT id, status_step, uploaded_at FROM batch_images WHERE batch_id = ? ORDER BY id',
       [batchId],
     );
 
@@ -82,7 +84,7 @@ export async function GET(request, { params }) {
       images,
     });
   } catch (err) {
-    console.error("[Get Batch]", err);
+    console.error('[Get Batch]', err);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

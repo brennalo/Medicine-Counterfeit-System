@@ -1,66 +1,105 @@
 // frontend/app/api/manufacturer/create-batch/route.js
-import { NextResponse } from "next/server";
-import { getMedicineRegistry, generateBatchId } from "@/lib/blockchain";
-import { withAuth } from "@/lib/auth";
-import db from "@/lib/db";
+import { NextResponse } from 'next/server';
+import {
+  getMedicineRegistryAs,
+  generateBatchId,
+  getUserRegistry,
+  hashBatchData,
+} from '@/lib/blockchain';
+import { withAuth } from '@/lib/auth';
 
 /**
- * POST body: {
- *   medicineId, medicineName, hospitalId, expiryDate (ISO string)
- * }
+ * POST body: { medicineId, medicineName, hospitalId, expiryDate (ISO string) }
+ *
+ * Contract call is signed by the manufacturer's own wallet (getMedicineRegistryAs).
+ * msg.sender in the contract resolves to manufacturerId via UserRegistry.
+ * manufacturerId is therefore NOT passed to createBatch — contract reads msg.sender.
  */
 async function handler(request) {
   try {
-    const { medicineId, medicineName, hospitalId, expiryDate } = await request.json();
+    const { medicineId, medicineName, hospitalId, expiryDate } =
+      await request.json();
 
     if (!medicineId || !medicineName || !hospitalId || !expiryDate) {
-      return NextResponse.json({ error: "All fields required" }, { status: 400 });
+      return NextResponse.json(
+        { error: 'All fields required' },
+        { status: 400 },
+      );
     }
 
     const manufacturerId = request.user.userId;
     const expiryTimestamp = Math.floor(new Date(expiryDate).getTime() / 1000);
 
     if (expiryTimestamp <= Math.floor(Date.now() / 1000)) {
-      return NextResponse.json({ error: "Expiry date must be in the future" }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Expiry date must be in the future' },
+        { status: 400 },
+      );
     }
 
-    // Generate batch ID (deterministic hash)
-    const batchIdBytes32 = generateBatchId(medicineId, manufacturerId, hospitalId, expiryTimestamp);
-    // Store as hex string on-chain
-    const batchId = batchIdBytes32;
+    const oneMonthFromNow = new Date();
+    oneMonthFromNow.setMonth(oneMonthFromNow.getMonth() + 1);
+    if (new Date(expiryDate) <= oneMonthFromNow) {
+      return NextResponse.json(
+        { error: 'Expiry date must be more than one month from today' },
+        { status: 400 },
+      );
+    }
 
-    const registry = getMedicineRegistry();
+    // ── Validate hospital exists on-chain ─────────────────────────────────────
+    const userReg = getUserRegistry();
+    const hospitalExists = await userReg.userExists(hospitalId);
+    if (!hospitalExists) {
+      return NextResponse.json(
+        { error: 'Hospital ID does not exist' },
+        { status: 400 },
+      );
+    }
+    const hospitalRole = await userReg.getUserRole(hospitalId);
+    if (Number(hospitalRole) !== 1) {
+      return NextResponse.json(
+        { error: 'Provided ID is not a hospital' },
+        { status: 400 },
+      );
+    }
 
-    // Write to blockchain
+    // ── Generate batch ID ─────────────────────────────────────────────────────
+    const batchId = generateBatchId(
+      medicineId,
+      manufacturerId,
+      hospitalId,
+      expiryTimestamp,
+    );
+    const batchDataHash = hashBatchData(
+      medicineId,
+      medicineName,
+      hospitalId,
+      manufacturerId,
+      expiryTimestamp,
+    );
+
+    // ── Sign with manufacturer's own wallet ───────────────────────────────────
+    // msg.sender in contract = manufacturer's registered wallet address
+    // Contract resolves manufacturerId from msg.sender via UserRegistry
+    const registry = getMedicineRegistryAs(manufacturerId);
+
     const tx = await registry.createBatch(
       batchId,
       medicineId,
       medicineName,
       hospitalId,
-      manufacturerId,
-      expiryTimestamp
+      expiryTimestamp,
+      batchDataHash,
+      // manufacturerId is NOT passed — contract reads msg.sender
     );
     await tx.wait();
 
-    // Mirror to MySQL for fast querying
-    await db.execute(
-      `INSERT INTO batch_off_chain
-         (batch_id, medicine_id, medicine_name, hospital_id, manufacturer_id, expiry_date)
-       VALUES (?, ?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE batch_id = batch_id`,
-      [batchId, medicineId, medicineName, hospitalId, manufacturerId, new Date(expiryDate)]
-    );
-
-    return NextResponse.json({
-      success: true,
-      batchId,
-      txHash: tx.hash,
-    });
+    return NextResponse.json({ success: true, batchId, txHash: tx.hash });
   } catch (err) {
-    console.error("[Create Batch]", err);
-    const msg = err?.revert?.args?.[0] || err.message || "Internal error";
+    console.error('[Create Batch]', err);
+    const msg = err?.revert?.args?.[0] || err.message || 'Internal error';
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 
-export const POST = withAuth(handler, "MANUFACTURER");
+export const POST = withAuth(handler, 'MANUFACTURER');
